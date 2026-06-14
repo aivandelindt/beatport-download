@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  beatportdl:
+    build: .
+    image: beatportdl-ui:latest
+    container_name: beatportdl
+    restart: unless-stopped
+    ports:
+      - "8989:8989"
+    volumes:
+      - ./config:/config
+      - ./downloads:/downloads
+    environment:
+      - TZ=Australia/Sydney

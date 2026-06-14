@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BeatportDL</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div id="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo">
+        <svg class="logo-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2"/>
+          <circle cx="16" cy="16" r="5" fill="currentColor"/>
+          <path d="M16 2 Q 22 8 22 16 Q 22 24 16 30" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.4"/>
+          <path d="M16 2 Q 10 8 10 16 Q 10 24 16 30" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.4"/>
+        </svg>
+        <span>BeatportDL</span>
+      </div>
+      <nav class="nav">
+        <button class="nav-item active" data-view="download">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download
+        </button>
+        <button class="nav-item" data-view="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Search
+        </button>
+        <button class="nav-item" data-view="queue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          Queue
+          <span class="badge" id="queue-badge" style="display:none">0</span>
+        </button>
+        <button class="nav-item" data-view="fix">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+          Fix Tags
+        </button>
+        <button class="nav-item" data-view="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Settings
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="status-dot" id="auth-dot"></div>
+        <span id="auth-label">Not authenticated</span>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+
+      <!-- Download View -->
+      <section class="view active" id="view-download">
+        <div class="view-header">
+          <h1>Download</h1>
+          <p class="subtitle">Paste a Beatport or Beatsource URL to download tracks</p>
+        </div>
+
+        <div class="download-card">
+          <div class="url-input-wrap">
+            <svg class="url-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+            <input
+              type="text"
+              id="url-input"
+              class="url-input"
+              placeholder="https://www.beatport.com/track/… or playlist/release/chart"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button class="btn-paste" id="btn-paste" title="Paste from clipboard">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            </button>
+          </div>
+
+          <div class="download-options">
+            <div class="quality-group">
+              <label>Quality</label>
+              <div class="quality-pills" id="quality-pills">
+                <button class="pill active" data-value="lossless">FLAC</button>
+                <button class="pill" data-value="high">AAC 256k</button>
+                <button class="pill" data-value="medium">AAC 128k</button>
+              </div>
+            </div>
+            <button class="btn-download" id="btn-download">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download
+            </button>
+          </div>
+        </div>
+
+        <div class="recent-section" id="recent-section" style="display:none">
+          <h2>Recent Activity</h2>
+          <div class="recent-list" id="recent-list"></div>
+        </div>
+      </section>
+
+      <!-- Search View -->
+      <section class="view" id="view-search">
+        <div class="view-header">
+          <h1>Search</h1>
+          <p class="subtitle">Find tracks and artists on Beatport</p>
+        </div>
+
+        <div class="search-card">
+          <div class="search-input-wrap">
+            <svg class="url-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input
+              type="text"
+              id="search-input"
+              class="url-input"
+              placeholder="Search tracks, artists, labels…"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+
+          <div class="search-tabs" id="search-tabs">
+            <button class="pill active" data-type="all">All</button>
+            <button class="pill" data-type="tracks">Tracks</button>
+            <button class="pill" data-type="artists">Artists</button>
+          </div>
+        </div>
+
+        <div class="search-status" id="search-status" style="display:none"></div>
+
+        <div class="search-results" id="search-results">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <p>Enter a search term to browse the Beatport catalog</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Queue View -->
+      <section class="view" id="view-queue">
+        <div class="view-header">
+          <h1>Queue</h1>
+          <p class="subtitle">Active and completed downloads</p>
+        </div>
+        <div class="queue-list" id="queue-list">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <p>No downloads yet</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Fix Tags View -->
+      <section class="view" id="view-fix">
+        <div class="view-header">
+          <h1>Fix Tags</h1>
+          <p class="subtitle">Strip track number prefixes and rewrite artist/title tags from filenames</p>
+        </div>
+
+        <div class="fix-card">
+          <div class="fix-info">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <div>
+              <strong>What this does</strong>
+              <p>Processes all .m4a and .flac files in the target folder — removes leading track numbers (e.g. "01. "), then rewrites the artist and title tags by splitting the filename at " - ".</p>
+            </div>
+          </div>
+
+          <div class="fix-dir-row">
+            <div class="input-group">
+              <label>Target Directory</label>
+              <input type="text" id="fix-dir-input" class="text-input" placeholder="Leave empty to use output folder from settings" />
+            </div>
+            <button class="btn-fix" id="btn-fix">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+              Run Fix
+            </button>
+          </div>
+
+          <div class="fix-log" id="fix-log" style="display:none">
+            <div class="fix-log-header">
+              <span>Output</span>
+              <button class="btn-clear-log" id="btn-clear-log">Clear</button>
+            </div>
+            <pre id="fix-log-content"></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- Settings View -->
+      <section class="view" id="view-settings">
+        <div class="view-header">
+          <h1>Settings</h1>
+          <p class="subtitle">Configure credentials, quality, and output options</p>
+        </div>
+
+        <form class="settings-form" id="settings-form">
+          <div class="settings-section">
+            <h2>Account</h2>
+            <div class="field-row">
+              <div class="field">
+                <label>Beatport Username / Email</label>
+                <input type="text" name="username" class="text-input" autocomplete="username" placeholder="your@email.com" />
+              </div>
+              <div class="field">
+                <label>Password</label>
+                <div class="password-wrap">
+                  <input type="password" name="password" class="text-input" autocomplete="current-password" placeholder="••••••••" />
+                  <button type="button" class="btn-eye" id="btn-eye">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn-secondary" id="btn-test-auth">Test Connection</button>
+            <p class="auth-result" id="auth-result"></p>
+          </div>
+
+          <div class="settings-section">
+            <h2>Download</h2>
+            <div class="field-row">
+              <div class="field full">
+                <label>Output Directory</label>
+                <input type="text" name="output_dir" class="text-input" placeholder="/Users/you/Music/BeatportDL" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Default Quality</label>
+                <select name="quality" class="select-input">
+                  <option value="lossless">FLAC (Lossless)</option>
+                  <option value="high">AAC 256k (High)</option>
+                  <option value="medium">AAC 128k (Medium)</option>
+                  <option value="medium-hls">AAC 128k HLS (Preview)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Concurrent Downloads</label>
+                <input type="number" name="max_workers" class="text-input" min="1" max="10" />
+              </div>
+            </div>
+            <div class="toggle-row">
+              <label class="toggle">
+                <input type="checkbox" name="create_subdirs" />
+                <span class="toggle-slider"></span>
+                Create subfolders for releases/playlists
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h2>Metadata</h2>
+            <div class="toggle-row">
+              <label class="toggle">
+                <input type="checkbox" name="embed_cover" />
+                <span class="toggle-slider"></span>
+                Embed cover art into files
+              </label>
+            </div>
+            <div class="toggle-row">
+              <label class="toggle">
+                <input type="checkbox" name="save_cover" />
+                <span class="toggle-slider"></span>
+                Save cover.jpg alongside files
+              </label>
+            </div>
+            <div class="toggle-row">
+              <label class="toggle">
+                <input type="checkbox" name="auto_fix_metadata" />
+                <span class="toggle-slider"></span>
+                Auto-fix tags after download (strip track numbers)
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h2>Server</h2>
+            <div class="field-row">
+              <div class="field">
+                <label>Port</label>
+                <input type="number" name="port" class="text-input" min="1024" max="65535" />
+              </div>
+            </div>
+            <p class="field-hint">Changes take effect on next restart.</p>
+          </div>
+
+          <div class="settings-actions">
+            <button type="submit" class="btn-primary">Save Settings</button>
+            <span class="save-feedback" id="save-feedback"></span>
+          </div>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
