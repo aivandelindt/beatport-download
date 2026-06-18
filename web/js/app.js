@@ -11,7 +11,14 @@ const state = {
   wsReady: false,
   searchType: 'all',
   searchQuery: '',
+  searchPerPage: 50,
+  searchGenreId: 0,
+  searchGenres: [],
+  searchIncludeArtists: false,
+  searchTopTracks: false,
   searchController: null,
+  searchResults: null,
+  searchTrackSort: { column: 'released', dir: 'desc' },
 };
 
 // ─── WebSocket ────────────────────────────────────────────────────────────────
@@ -183,11 +190,56 @@ function updateAuthStatus(ok) {
 }
 
 // ─── Search ───────────────────────────────────────────────────────────────────
-let searchDebounceTimer = null;
 
 function initSearch() {
   const input = $('#search-input');
+  const btnSearch = $('#btn-search');
   const tabs = $('#search-tabs');
+  const perPage = $('#search-per-page');
+  const genreSelect = $('#search-genre');
+  const includeArtists = $('#search-include-artists');
+  const topTracks = $('#search-top-tracks');
+
+  loadSearchGenres();
+
+  function syncSearchOptionsUI() {
+    const tracksOnly = state.searchType === 'tracks';
+    const artistsOnly = state.searchType === 'artists';
+    $('#search-include-artists-wrap').style.display = tracksOnly ? '' : 'none';
+    $('#search-top-tracks-wrap').style.display = (artistsOnly || state.searchType === 'all' || (tracksOnly && state.searchIncludeArtists)) ? '' : 'none';
+    if (!tracksOnly) {
+      includeArtists.checked = false;
+      state.searchIncludeArtists = false;
+    }
+    if (artistsOnly || state.searchType === 'all') {
+      topTracks.disabled = false;
+    } else if (tracksOnly && !state.searchIncludeArtists) {
+      topTracks.checked = false;
+      state.searchTopTracks = false;
+      topTracks.disabled = true;
+    }
+  }
+
+  perPage?.addEventListener('change', () => {
+    state.searchPerPage = parseInt(perPage.value, 10) || 50;
+    triggerSearchIfReady();
+  });
+
+  genreSelect?.addEventListener('change', () => {
+    state.searchGenreId = parseInt(genreSelect.value, 10) || 0;
+    triggerSearchIfReady();
+  });
+
+  includeArtists?.addEventListener('change', () => {
+    state.searchIncludeArtists = includeArtists.checked;
+    syncSearchOptionsUI();
+    triggerSearchIfReady();
+  });
+
+  topTracks?.addEventListener('change', () => {
+    state.searchTopTracks = topTracks.checked;
+    triggerSearchIfReady();
+  });
 
   tabs?.addEventListener('click', (e) => {
     const pill = e.target.closest('.pill');
@@ -195,31 +247,68 @@ function initSearch() {
     $$('.pill', tabs).forEach(p => p.classList.remove('active'));
     pill.classList.add('active');
     state.searchType = pill.dataset.type;
-    if (state.searchQuery.length >= 2) runSearch(state.searchQuery);
+    syncSearchOptionsUI();
+    triggerSearchIfReady();
   });
+
+  syncSearchOptionsUI();
+  state.searchPerPage = parseInt(perPage?.value, 10) || 50;
+
+  btnSearch?.addEventListener('click', () => startSearch());
 
   input?.addEventListener('input', () => {
     const q = input.value.trim();
-    clearTimeout(searchDebounceTimer);
-    if (q.length < 2) {
+    if (q.length < 2 && !state.searchGenreId) {
       state.searchQuery = '';
-      renderSearchEmpty('Enter at least 2 characters to search');
+      renderSearchEmpty('Enter a search term or pick a genre, then click Search');
       setSearchStatus('');
-      return;
     }
-    searchDebounceTimer = setTimeout(() => runSearch(q), 350);
   });
 
   input?.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
-      clearTimeout(searchDebounceTimer);
-      const q = input.value.trim();
-      if (q.length >= 2) runSearch(q);
+      e.preventDefault();
+      startSearch();
     }
   });
 }
 
+function startSearch() {
+  const input = $('#search-input');
+  const q = input?.value.trim() || '';
+  const hasQuery = q.length >= 2;
+  if (!hasQuery && !state.searchGenreId) {
+    toast('Enter at least 2 characters or pick a genre', 'warn');
+    return;
+  }
+  runSearch(q);
+}
+
+async function loadSearchGenres() {
+  const select = $('#search-genre');
+  if (!select) return;
+  try {
+    const res = await fetch('/api/genres');
+    const data = await res.json();
+    if (!res.ok) return;
+    state.searchGenres = data || [];
+    const current = select.value;
+    select.innerHTML = '<option value="">All genres</option>' +
+      state.searchGenres.map(g => `<option value="${g.id}">${escHtml(g.name)}</option>`).join('');
+    if (current) select.value = current;
+  } catch (_) {}
+}
+
+function triggerSearchIfReady() {
+  if (state.searchQuery.length >= 2 || state.searchGenreId) {
+    runSearch(state.searchQuery || $('#search-input')?.value.trim() || '');
+  }
+}
+
 async function runSearch(query) {
+  const hasQuery = query.length >= 2;
+  if (!hasQuery && !state.searchGenreId) return;
+
   state.searchQuery = query;
   if (state.searchController) state.searchController.abort();
   state.searchController = new AbortController();
@@ -233,8 +322,17 @@ async function runSearch(query) {
       q: query,
       type: state.searchType,
       page: '1',
-      per_page: '25',
+      per_page: String(state.searchPerPage),
     });
+    if (state.searchIncludeArtists && state.searchType === 'tracks') {
+      params.set('include_artists', '1');
+    }
+    if (state.searchTopTracks) {
+      params.set('top_tracks', '1');
+    }
+    if (state.searchGenreId) {
+      params.set('genre_id', String(state.searchGenreId));
+    }
     const res = await fetch(`/api/search?${params}`, { signal: state.searchController.signal });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Search failed');
@@ -276,22 +374,22 @@ function renderSearchEmpty(msg) {
 }
 
 function renderSearchResults(data) {
+  state.searchResults = data;
   const resultsEl = $('#search-results');
   const sections = [];
 
   if (data.tracks?.items?.length) {
+    const tracks = sortTrackItems(data.tracks.items, state.searchTrackSort.column, state.searchTrackSort.dir);
     sections.push(`
-      <div class="search-section">
+      <div class="search-section" data-section="tracks">
         <h2 class="search-section-title">Tracks <span class="search-count">${data.tracks.count || data.tracks.items.length}</span></h2>
-        <div class="search-list">
-          ${data.tracks.items.map(t => searchTrackHTML(t)).join('')}
-        </div>
+        ${searchTrackTableHTML(tracks, 'search-tracks-table')}
       </div>`);
   }
 
   if (data.artists?.items?.length) {
     sections.push(`
-      <div class="search-section">
+      <div class="search-section" data-section="artists">
         <h2 class="search-section-title">Artists <span class="search-count">${data.artists.count || data.artists.items.length}</span></h2>
         <div class="search-list">
           ${data.artists.items.map(a => searchArtistHTML(a)).join('')}
@@ -300,29 +398,152 @@ function renderSearchResults(data) {
   }
 
   if (sections.length === 0) {
+    state.searchResults = null;
     renderSearchEmpty('No results found');
     return;
   }
 
   resultsEl.innerHTML = sections.join('');
   bindSearchActions(resultsEl);
+  bindTrackSortHeaders(resultsEl);
 }
 
-function searchTrackHTML(t) {
-  const meta = [t.artists, t.genre, t.bpm ? `${t.bpm} BPM` : '', t.key, t.length].filter(Boolean).join(' · ');
+function sortTrackItems(items, column, dir) {
+  const sorted = [...items];
+  const mult = dir === 'asc' ? 1 : -1;
+
+  sorted.sort((a, b) => {
+    let av;
+    let bv;
+    switch (column) {
+      case 'title':
+        av = (a.title || '').toLowerCase();
+        bv = (b.title || '').toLowerCase();
+        break;
+      case 'artists':
+        av = (a.artists || '').toLowerCase();
+        bv = (b.artists || '').toLowerCase();
+        break;
+      case 'genre':
+        av = (a.genre || '').toLowerCase();
+        bv = (b.genre || '').toLowerCase();
+        break;
+      case 'bpm':
+        av = a.bpm || 0;
+        bv = b.bpm || 0;
+        break;
+      case 'key':
+        av = (a.key || '').toLowerCase();
+        bv = (b.key || '').toLowerCase();
+        break;
+      case 'camelot':
+        av = camelotSortValue(a.camelot);
+        bv = camelotSortValue(b.camelot);
+        break;
+      case 'released':
+        av = a.released || '';
+        bv = b.released || '';
+        break;
+      default:
+        return 0;
+    }
+    if (av < bv) return -1 * mult;
+    if (av > bv) return 1 * mult;
+    return 0;
+  });
+  return sorted;
+}
+
+function defaultSortDir(column) {
+  if (column === 'released' || column === 'bpm' || column === 'camelot') return 'desc';
+  return 'asc';
+}
+
+function camelotSortValue(code) {
+  const m = (code || '').match(/^(\d{1,2})([AB])$/i);
+  if (!m) return 0;
+  const n = parseInt(m[1], 10);
+  const letter = m[2].toUpperCase() === 'B' ? 1 : 0;
+  return n * 2 + letter;
+}
+
+function camelotTextHTML(code) {
+  if (!code) return '—';
+  const style = camelotColorStyle(code);
+  return `<span class="camelot-code" style="${style}">${escHtml(code)}</span>`;
+}
+
+function camelotColorStyle(code) {
+  const m = (code || '').match(/^(\d{1,2})([AB])$/i);
+  if (!m) return '';
+  const n = parseInt(m[1], 10);
+  const minor = m[2].toUpperCase() === 'A';
+  const hue = ((n - 1) * 30 + (minor ? 8 : 0)) % 360;
+  const sat = minor ? 62 : 78;
+  const light = minor ? 68 : 62;
+  return `color:hsl(${hue},${sat}%,${light}%)`;
+}
+
+function keyCellHTML(t) {
+  if (!t.camelot && !t.key) return '—';
+  const camelot = t.camelot ? camelotTextHTML(t.camelot) : '';
+  const name = t.key ? `<span class="musical-key-name">${escHtml(t.key)}</span>` : '';
+  return `<div class="key-cell">${camelot}${name}</div>`;
+}
+
+function sortHeaderLabel(column, label) {
+  const active = state.searchTrackSort.column === column;
+  const arrow = active ? (state.searchTrackSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+  return `<button type="button" class="search-sort-btn${active ? ' active' : ''}" data-sort="${column}" title="Sort by ${label}">${label}${arrow}</button>`;
+}
+
+function searchTrackTableHTML(tracks, tableId) {
+  return `
+    <div class="search-table-wrap">
+      <div class="search-table search-track-table" id="${tableId || ''}">
+        <div class="search-table-head search-track-row">
+          <div class="search-col search-col-track">${sortHeaderLabel('title', 'Track')}</div>
+          <div class="search-col search-col-artists">${sortHeaderLabel('artists', 'Artist')}</div>
+          <div class="search-col search-col-genre">${sortHeaderLabel('genre', 'Genre')}</div>
+          <div class="search-col search-col-bpm">${sortHeaderLabel('bpm', 'BPM')}</div>
+          <div class="search-col search-col-key">${sortHeaderLabel('camelot', 'Key')}</div>
+          <div class="search-col search-col-released">${sortHeaderLabel('released', 'Released')}</div>
+          <div class="search-col search-col-actions"></div>
+        </div>
+        <div class="search-table-body">
+          ${tracks.map(t => searchTrackRowHTML(t)).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
+function formatReleased(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function searchTrackRowHTML(t) {
   const img = t.image_uri
     ? `<img class="search-thumb" src="${escHtml(t.image_uri)}" alt="" loading="lazy" />`
     : `<div class="search-thumb placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg></div>`;
 
   return `
-    <div class="search-item" data-url="${escHtml(t.url)}">
-      ${img}
-      <div class="search-item-info">
-        <div class="search-item-title">${escHtml(t.title)}</div>
-        <div class="search-item-meta">${escHtml(meta)}</div>
-        ${t.label ? `<div class="search-item-label">${escHtml(t.label)}</div>` : ''}
+    <div class="search-item search-track-row" data-url="${escHtml(t.url)}">
+      <div class="search-col search-col-track">
+        ${img}
+        <div class="search-item-info">
+          <div class="search-item-title">${escHtml(t.title)}</div>
+          ${t.label ? `<div class="search-item-label">${escHtml(t.label)}</div>` : ''}
+        </div>
       </div>
-      <div class="search-item-actions">
+      <div class="search-col search-col-artists" title="${escHtml(t.artists || '')}">${escHtml(t.artists) || '—'}</div>
+      <div class="search-col search-col-genre" title="${escHtml(t.genre || '')}">${escHtml(t.genre) || '—'}</div>
+      <div class="search-col search-col-bpm">${t.bpm ? escHtml(String(t.bpm)) : '—'}</div>
+      <div class="search-col search-col-key">${keyCellHTML(t)}</div>
+      <div class="search-col search-col-released">${formatReleased(t.released)}</div>
+      <div class="search-col search-col-actions">
         <a class="btn-icon" href="${escHtml(t.url)}" target="_blank" rel="noopener" title="Open on Beatport" onclick="event.stopPropagation()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </a>
@@ -333,26 +554,51 @@ function searchTrackHTML(t) {
     </div>`;
 }
 
+function bindTrackSortHeaders(container) {
+  $$('.search-sort-btn', container).forEach(btn => {
+    btn.addEventListener('click', () => {
+      const col = btn.dataset.sort;
+      if (state.searchTrackSort.column === col) {
+        state.searchTrackSort.dir = state.searchTrackSort.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        state.searchTrackSort.column = col;
+        state.searchTrackSort.dir = defaultSortDir(col);
+      }
+      if (state.searchResults) renderSearchResults(state.searchResults);
+    });
+  });
+}
+
 function searchArtistHTML(a) {
   const img = a.image_uri
     ? `<img class="search-thumb round" src="${escHtml(a.image_uri)}" alt="" loading="lazy" />`
     : `<div class="search-thumb round placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>`;
 
+  const topTracksHTML = (a.top_tracks?.length)
+    ? `<div class="artist-top-tracks">
+        <div class="artist-top-tracks-label">Top 10</div>
+        ${searchTrackTableHTML(sortTrackItems(a.top_tracks, state.searchTrackSort.column, state.searchTrackSort.dir), '')}
+      </div>`
+    : '';
+
   return `
-    <div class="search-item" data-url="${escHtml(a.url)}">
-      ${img}
-      <div class="search-item-info">
-        <div class="search-item-title">${escHtml(a.name)}</div>
-        <div class="search-item-meta">Artist</div>
+    <div class="search-item search-item-artist" data-url="${escHtml(a.url)}">
+      <div class="search-item-main">
+        ${img}
+        <div class="search-item-info">
+          <div class="search-item-title">${escHtml(a.name)}</div>
+          <div class="search-item-meta">Artist${a.top_tracks?.length ? ` · ${a.top_tracks.length} top tracks` : ''}</div>
+        </div>
+        <div class="search-item-actions">
+          <a class="btn-icon" href="${escHtml(a.url)}" target="_blank" rel="noopener" title="Open on Beatport" onclick="event.stopPropagation()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+          <button class="btn-search-download" title="Download all tracks">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </button>
+        </div>
       </div>
-      <div class="search-item-actions">
-        <a class="btn-icon" href="${escHtml(a.url)}" target="_blank" rel="noopener" title="Open on Beatport" onclick="event.stopPropagation()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        </a>
-        <button class="btn-search-download" title="Download all tracks">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        </button>
-      </div>
+      ${topTracksHTML}
     </div>`;
 }
 
@@ -360,7 +606,7 @@ function bindSearchActions(container) {
   $$('.btn-search-download', container).forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      const url = btn.closest('.search-item')?.dataset.url;
+      const url = btn.closest('.search-track-row')?.dataset.url || btn.closest('.search-item')?.dataset.url;
       if (url) downloadFromSearch(url, btn);
     });
   });

@@ -2,6 +2,7 @@ package beatport
 
 import (
 	"strings"
+	"fmt"
 	"time"
 )
 
@@ -51,6 +52,17 @@ type Key struct {
 	CamelotNumber  int    `json:"camelot_number"`
 	CamelotLetter  string `json:"camelot_letter"`
 	ShortName      string `json:"short_name,omitempty"`
+}
+
+func (k *Key) CamelotCode() string {
+	if k == nil || k.CamelotNumber <= 0 {
+		return ""
+	}
+	letter := strings.ToUpper(k.CamelotLetter)
+	if letter != "A" && letter != "B" {
+		letter = "A"
+	}
+	return fmt.Sprintf("%d%s", k.CamelotNumber, letter)
 }
 
 type Label struct {

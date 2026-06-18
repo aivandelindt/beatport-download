@@ -10,6 +10,7 @@ import (
 	"runtime"
 
 	"beatportdl-ui/internal/config"
+	"beatportdl-ui/internal/logging"
 	"beatportdl-ui/internal/server"
 )
 
@@ -20,6 +21,8 @@ func main() {
 	portFlag := flag.Int("port", 0, "Port to listen on (overrides config)")
 	noOpen := flag.Bool("no-open", false, "Don't open browser on start")
 	flag.Parse()
+
+	logging.Init()
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -34,6 +37,7 @@ func main() {
 	srv := server.NewServer(cfg)
 	mux := http.NewServeMux()
 	srv.Mount(mux, webFS)
+	handler := logging.HTTPMiddleware(mux)
 
 	addr := fmt.Sprintf(":%d", cfg.Port)
 	url := fmt.Sprintf("http://localhost:%d", cfg.Port)
@@ -44,7 +48,7 @@ func main() {
 		go openBrowser(url)
 	}
 
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := http.ListenAndServe(addr, handler); err != nil {
 		fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
 		os.Exit(1)
 	}

@@ -23,13 +23,13 @@
         <span>BeatportDL</span>
       </div>
       <nav class="nav">
-        <button class="nav-item active" data-view="download">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download
-        </button>
-        <button class="nav-item" data-view="search">
+        <button class="nav-item active" data-view="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           Search
+        </button>
+        <button class="nav-item" data-view="download">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download
         </button>
         <button class="nav-item" data-view="queue">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
@@ -54,8 +54,79 @@
     <!-- Main -->
     <main class="main">
 
+      <!-- Search View -->
+      <section class="view active" id="view-search">
+        <div class="view-header">
+          <h1>Search</h1>
+          <p class="subtitle">Find tracks and artists on Beatport</p>
+        </div>
+
+        <div class="search-card">
+          <div class="search-input-row">
+            <div class="search-input-wrap">
+              <svg class="url-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input
+                type="text"
+                id="search-input"
+                class="url-input"
+                placeholder="Search tracks, artists, labels…"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+            <button class="btn-search" id="btn-search" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Search
+            </button>
+          </div>
+
+          <div class="search-tabs" id="search-tabs">
+            <button class="pill active" data-type="all">All</button>
+            <button class="pill" data-type="tracks">Tracks</button>
+            <button class="pill" data-type="artists">Artists</button>
+          </div>
+
+          <div class="search-options">
+            <div class="search-option">
+              <label for="search-genre">Genre</label>
+              <select id="search-genre" class="select-input">
+                <option value="">All genres</option>
+              </select>
+            </div>
+            <div class="search-option">
+              <label for="search-per-page">Max results</label>
+              <select id="search-per-page" class="select-input">
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="150">150</option>
+                <option value="200">200</option>
+              </select>
+            </div>
+            <label class="toggle search-toggle" id="search-include-artists-wrap">
+              <input type="checkbox" id="search-include-artists" />
+              <span class="toggle-slider"></span>
+              Include artists
+            </label>
+            <label class="toggle search-toggle" id="search-top-tracks-wrap">
+              <input type="checkbox" id="search-top-tracks" />
+              <span class="toggle-slider"></span>
+              Artist top 10
+            </label>
+          </div>
+        </div>
+
+        <div class="search-status" id="search-status" style="display:none"></div>
+
+        <div class="search-results" id="search-results">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <p>Enter a search term or pick a genre, then click Search</p>
+          </div>
+        </div>
+      </section>
+
       <!-- Download View -->
-      <section class="view active" id="view-download">
+      <section class="view" id="view-download">
         <div class="view-header">
           <h1>Download</h1>
           <p class="subtitle">Paste a Beatport or Beatsource URL to download tracks</p>
@@ -96,43 +167,6 @@
         <div class="recent-section" id="recent-section" style="display:none">
           <h2>Recent Activity</h2>
           <div class="recent-list" id="recent-list"></div>
-        </div>
-      </section>
-
-      <!-- Search View -->
-      <section class="view" id="view-search">
-        <div class="view-header">
-          <h1>Search</h1>
-          <p class="subtitle">Find tracks and artists on Beatport</p>
-        </div>
-
-        <div class="search-card">
-          <div class="search-input-wrap">
-            <svg class="url-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input
-              type="text"
-              id="search-input"
-              class="url-input"
-              placeholder="Search tracks, artists, labels…"
-              autocomplete="off"
-              spellcheck="false"
-            />
-          </div>
-
-          <div class="search-tabs" id="search-tabs">
-            <button class="pill active" data-type="all">All</button>
-            <button class="pill" data-type="tracks">Tracks</button>
-            <button class="pill" data-type="artists">Artists</button>
-          </div>
-        </div>
-
-        <div class="search-status" id="search-status" style="display:none"></div>
-
-        <div class="search-results" id="search-results">
-          <div class="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <p>Enter a search term to browse the Beatport catalog</p>
-          </div>
         </div>
       </section>
 

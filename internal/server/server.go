@@ -13,6 +13,7 @@ func (s *Server) Mount(mux *http.ServeMux, webFS embed.FS) {
 	mux.HandleFunc("POST /api/settings", s.handleSaveSettings)
 	mux.HandleFunc("POST /api/auth/test", s.handleTestAuth)
 	mux.HandleFunc("GET /api/search", s.handleSearch)
+	mux.HandleFunc("GET /api/genres", s.handleGenres)
 	mux.HandleFunc("POST /api/download", s.handleDownload)
 	mux.HandleFunc("GET /api/jobs", s.handleListJobs)
 	mux.HandleFunc("DELETE /api/jobs/{id}", s.handleDeleteJob)

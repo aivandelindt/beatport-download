@@ -2,9 +2,11 @@ package server
 
 import (
 	"archive/zip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -117,15 +119,18 @@ type SearchTrackItem struct {
 	Label    string `json:"label,omitempty"`
 	Length   string `json:"length,omitempty"`
 	Key      string `json:"key,omitempty"`
+	Camelot  string `json:"camelot,omitempty"`
+	Released string `json:"released,omitempty"`
 	ImageURI string `json:"image_uri,omitempty"`
 	URL      string `json:"url"`
 }
 
 type SearchArtistItem struct {
-	ID       int    `json:"id"`
-	Name     string `json:"name"`
-	ImageURI string `json:"image_uri,omitempty"`
-	URL      string `json:"url"`
+	ID        int               `json:"id"`
+	Name      string            `json:"name"`
+	ImageURI  string            `json:"image_uri,omitempty"`
+	URL       string            `json:"url"`
+	TopTracks []SearchTrackItem `json:"top_tracks,omitempty"`
 }
 
 type SearchResultPage[T any] struct {
@@ -141,13 +146,56 @@ type SearchResponsePayload struct {
 	Artists *SearchResultPage[SearchArtistItem] `json:"artists,omitempty"`
 }
 
-// GET /api/search?q=...&type=tracks|artists|all&page=1&per_page=25
+// GET /api/genres
+func (s *Server) handleGenres(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	s.cfgMu.RLock()
+	username := s.cfg.Username
+	password := s.cfg.Password
+	s.cfgMu.RUnlock()
+
+	if username == "" || password == "" {
+		respondErr(w, 400, "credentials not configured — go to Settings first")
+		return
+	}
+
+	client := beatport.NewClient(username, password, credentialsDir())
+	if err := client.Authenticate(); err != nil {
+		slog.Error("genres auth failed", "error", err)
+		respondErr(w, 401, "authentication failed: "+err.Error())
+		return
+	}
+
+	genres, err := client.GetGenres(ctx)
+	if err != nil {
+		slog.Error("genres fetch failed", "error", err)
+		respondErr(w, 502, "failed to load genres: "+err.Error())
+		return
+	}
+
+	type genreItem struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+		Slug string `json:"slug"`
+	}
+	items := make([]genreItem, 0, len(genres))
+	for _, g := range genres {
+		items = append(items, genreItem{ID: g.ID, Name: g.Name, Slug: g.Slug})
+	}
+	slog.Info("genres loaded", "count", len(items))
+	respond(w, 200, items)
+}
+
+// GET /api/search?q=...&type=tracks|artists|all&page=1&per_page=50&genre_id=...&include_artists=1&top_tracks=1
 func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
-	if query == "" {
-		respondErr(w, 400, "q required")
+	genreID, _ := strconv.Atoi(r.URL.Query().Get("genre_id"))
+
+	if query == "" && genreID <= 0 {
+		respondErr(w, 400, "q or genre_id required")
 		return
 	}
 
@@ -162,15 +210,23 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	includeArtists := r.URL.Query().Get("include_artists") == "1" || r.URL.Query().Get("include_artists") == "true"
+	topTracks := r.URL.Query().Get("top_tracks") == "1" || r.URL.Query().Get("top_tracks") == "true"
+
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	if page < 1 {
 		page = 1
 	}
 	perPage, _ := strconv.Atoi(r.URL.Query().Get("per_page"))
 	if perPage < 1 {
-		perPage = 25
+		perPage = 50
 	}
-	if perPage > 50 {
+	if perPage > 200 {
+		perPage = 200
+	}
+	// Beatport API allows max 100 per page; round down to nearest 50
+	perPage = (perPage / 50) * 50
+	if perPage < 50 {
 		perPage = 50
 	}
 
@@ -186,9 +242,20 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 
 	client := beatport.NewClient(username, password, credentialsDir())
 	if err := client.Authenticate(); err != nil {
+		slog.Error("search auth failed", "error", err)
 		respondErr(w, 401, "authentication failed: "+err.Error())
 		return
 	}
+
+	slog.Info("search",
+		"q", query,
+		"type", searchType,
+		"genre_id", genreID,
+		"page", page,
+		"per_page", perPage,
+		"include_artists", includeArtists,
+		"top_tracks", topTracks,
+	)
 
 	payload := SearchResponsePayload{
 		Query: query,
@@ -196,40 +263,158 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if searchType == "all" || searchType == "tracks" {
-		tracks, err := client.SearchTracks(ctx, query, page, perPage)
+		var tracks []beatport.Track
+		var err error
+		if query == "" && genreID > 0 {
+			tracks, err = listTracksByGenrePaginated(ctx, client, genreID, page, perPage)
+		} else {
+			tracks, err = searchTracksPaginated(ctx, client, query, page, perPage, genreID)
+		}
 		if err != nil {
+			slog.Error("track search failed", "error", err)
 			respondErr(w, 502, "track search failed: "+err.Error())
 			return
 		}
-		items := make([]SearchTrackItem, 0, len(tracks.Results))
-		for _, t := range tracks.Results {
+		items := make([]SearchTrackItem, 0, len(tracks))
+		for _, t := range tracks {
 			items = append(items, trackToSearchItem(t))
 		}
 		payload.Tracks = &SearchResultPage[SearchTrackItem]{
-			Count: tracks.Count,
+			Count: len(items),
 			Page:  page,
 			Items: items,
 		}
 	}
 
-	if searchType == "all" || searchType == "artists" {
-		artists, err := client.SearchArtists(ctx, query, page, perPage)
-		if err != nil {
-			respondErr(w, 502, "artist search failed: "+err.Error())
-			return
-		}
-		items := make([]SearchArtistItem, 0, len(artists.Results))
-		for _, a := range artists.Results {
-			items = append(items, artistToSearchItem(a))
-		}
-		payload.Artists = &SearchResultPage[SearchArtistItem]{
-			Count: artists.Count,
-			Page:  page,
-			Items: items,
+	fetchArtists := searchType == "all" || searchType == "artists" || (searchType == "tracks" && includeArtists)
+	if fetchArtists {
+		if query == "" {
+			payload.Artists = &SearchResultPage[SearchArtistItem]{Count: 0, Page: page, Items: []SearchArtistItem{}}
+		} else {
+			artists, err := searchArtistsPaginated(ctx, client, query, page, perPage, genreID)
+			if err != nil {
+				slog.Error("artist search failed", "error", err)
+				respondErr(w, 502, "artist search failed: "+err.Error())
+				return
+			}
+			items := make([]SearchArtistItem, 0, len(artists))
+			for _, a := range artists {
+				item := artistToSearchItem(a)
+				if topTracks {
+					top, err := client.GetArtistTopTracks(ctx, a.ID, 10)
+					if err == nil {
+						for _, t := range top {
+							item.TopTracks = append(item.TopTracks, trackToSearchItem(t))
+						}
+					}
+				}
+				items = append(items, item)
+			}
+			payload.Artists = &SearchResultPage[SearchArtistItem]{
+				Count: len(items),
+				Page:  page,
+				Items: items,
+			}
 		}
 	}
 
+	trackCount := 0
+	if payload.Tracks != nil {
+		trackCount = len(payload.Tracks.Items)
+	}
+	slog.Info("search complete", "tracks", trackCount, "artists", artistResultCount(payload.Artists))
 	respond(w, 200, payload)
+}
+
+func artistResultCount(page *SearchResultPage[SearchArtistItem]) int {
+	if page == nil {
+		return 0
+	}
+	return len(page.Items)
+}
+
+func listTracksByGenrePaginated(ctx context.Context, client *beatport.Client, genreID, page, perPage int) ([]beatport.Track, error) {
+	const apiMax = 100
+	remaining := perPage
+	apiPage := page
+	var out []beatport.Track
+
+	for remaining > 0 {
+		batch := remaining
+		if batch > apiMax {
+			batch = apiMax
+		}
+		raw, err := client.ListTracksByGenre(ctx, genreID, apiPage, batch)
+		if err != nil {
+			return nil, err
+		}
+		if len(raw.Results) == 0 {
+			break
+		}
+		out = append(out, raw.Results...)
+		remaining -= len(raw.Results)
+		apiPage++
+		if len(raw.Results) < batch {
+			break
+		}
+	}
+	return out, nil
+}
+
+func searchTracksPaginated(ctx context.Context, client *beatport.Client, query string, page, perPage, genreID int) ([]beatport.Track, error) {
+	const apiMax = 100
+	remaining := perPage
+	apiPage := page
+	var out []beatport.Track
+
+	for remaining > 0 {
+		batch := remaining
+		if batch > apiMax {
+			batch = apiMax
+		}
+		raw, err := client.SearchTracks(ctx, query, apiPage, batch, genreID)
+		if err != nil {
+			return nil, err
+		}
+		if len(raw.Results) == 0 {
+			break
+		}
+		out = append(out, raw.Results...)
+		remaining -= len(raw.Results)
+		apiPage++
+		if len(raw.Results) < batch {
+			break
+		}
+	}
+	return out, nil
+}
+
+func searchArtistsPaginated(ctx context.Context, client *beatport.Client, query string, page, perPage, genreID int) ([]beatport.Artist, error) {
+	const apiMax = 100
+	remaining := perPage
+	apiPage := page
+	var out []beatport.Artist
+
+	for remaining > 0 {
+		batch := remaining
+		if batch > apiMax {
+			batch = apiMax
+		}
+		raw, err := client.SearchArtists(ctx, query, apiPage, batch, genreID)
+		if err != nil {
+			return nil, err
+		}
+		if len(raw.Results) == 0 {
+			break
+		}
+		out = append(out, raw.Results...)
+		remaining -= len(raw.Results)
+		apiPage++
+		if len(raw.Results) < batch {
+			break
+		}
+	}
+	return out, nil
 }
 
 func trackToSearchItem(t beatport.Track) SearchTrackItem {
@@ -249,6 +434,14 @@ func trackToSearchItem(t beatport.Track) SearchTrackItem {
 	}
 	if t.Key != nil {
 		item.Key = t.Key.Name
+		item.Camelot = t.Key.CamelotCode()
+	}
+	if t.PublishDate != "" {
+		item.Released = t.PublishDate
+	} else if t.NewReleaseDate != "" {
+		item.Released = t.NewReleaseDate
+	} else if t.Release.NewReleaseDate != "" {
+		item.Released = t.Release.NewReleaseDate
 	}
 	if t.Image.URI != "" {
 		item.ImageURI = t.Image.URI
@@ -310,6 +503,7 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 	s.jobsMu.Unlock()
 
 	s.broadcastJob(job)
+	slog.Info("download queued", "job_id", jobID, "url", req.URL, "quality", cfg.Quality)
 
 	go func() {
 		defer func() {

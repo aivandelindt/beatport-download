@@ -350,8 +350,62 @@ func (c *Client) GetArtist(id int) (*Artist, error) {
 	return &artist, err
 }
 
+func (c *Client) GetArtistTopTracks(ctx context.Context, id int, perPage int) ([]Track, error) {
+	if perPage < 1 {
+		perPage = 10
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	var page Paginated[Track]
+	err := c.apiGetContext(ctx, fmt.Sprintf("/catalog/artists/%d/tracks/?per_page=%d&page=1", id, perPage), &page)
+	if err != nil {
+		return nil, err
+	}
+	return page.Results, nil
+}
+
 func (c *Client) GetArtistTracks(id int) ([]Track, error) {
 	return c.getAllTracks(fmt.Sprintf("/catalog/artists/%d/tracks/", id))
+}
+
+// Genre methods
+
+func (c *Client) GetGenres(ctx context.Context) ([]Genre, error) {
+	var all []Genre
+	page := 1
+	for {
+		var paginated Paginated[Genre]
+		err := c.apiGetContext(ctx, fmt.Sprintf("/catalog/genres/?page=%d&per_page=100", page), &paginated)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, paginated.Results...)
+		if paginated.Next == "" || len(paginated.Results) == 0 {
+			break
+		}
+		page++
+	}
+	return all, nil
+}
+
+func (c *Client) ListTracksByGenre(ctx context.Context, genreID, page, perPage int) (*Paginated[Track], error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 50
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+	var result Paginated[Track]
+	err := c.apiGetContext(ctx, fmt.Sprintf(
+		"/catalog/tracks/?genre_id=%d&page=%d&per_page=%d&order_by=-publish_date",
+		genreID, page, perPage,
+	), &result)
+	return &result, err
 }
 
 // Search
@@ -362,7 +416,7 @@ func (c *Client) Search(ctx context.Context, query string) (*SearchResults, erro
 	return &results, err
 }
 
-func (c *Client) SearchTyped(ctx context.Context, query string, searchType SearchType, page, perPage int) (*Paginated[json.RawMessage], error) {
+func (c *Client) SearchTyped(ctx context.Context, query string, searchType SearchType, page, perPage, genreID int) (*Paginated[json.RawMessage], error) {
 	if page < 1 {
 		page = 1
 	}
@@ -377,6 +431,9 @@ func (c *Client) SearchTyped(ctx context.Context, query string, searchType Searc
 		"/catalog/search/?q=%s&type=%s&page=%d&per_page=%d",
 		url.QueryEscape(query), searchType, page, perPage,
 	)
+	if genreID > 0 {
+		path += fmt.Sprintf("&genre_id=%d", genreID)
+	}
 	if searchType == SearchTypeTracks {
 		path += "&order_by=-publish_date"
 	}
@@ -440,16 +497,16 @@ func decodeTypedSearchPage(body []byte, searchType SearchType) (*Paginated[json.
 	}, nil
 }
 
-func (c *Client) SearchTracks(ctx context.Context, query string, page, perPage int) (*Paginated[Track], error) {
-	raw, err := c.SearchTyped(ctx, query, SearchTypeTracks, page, perPage)
+func (c *Client) SearchTracks(ctx context.Context, query string, page, perPage, genreID int) (*Paginated[Track], error) {
+	raw, err := c.SearchTyped(ctx, query, SearchTypeTracks, page, perPage, genreID)
 	if err != nil {
 		return nil, err
 	}
 	return decodeSearchItems[Track](raw)
 }
 
-func (c *Client) SearchArtists(ctx context.Context, query string, page, perPage int) (*Paginated[Artist], error) {
-	raw, err := c.SearchTyped(ctx, query, SearchTypeArtists, page, perPage)
+func (c *Client) SearchArtists(ctx context.Context, query string, page, perPage, genreID int) (*Paginated[Artist], error) {
+	raw, err := c.SearchTyped(ctx, query, SearchTypeArtists, page, perPage, genreID)
 	if err != nil {
 		return nil, err
 	}
