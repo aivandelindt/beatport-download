@@ -424,6 +424,10 @@ function sortTrackItems(items, column, dir) {
         av = (a.artists || '').toLowerCase();
         bv = (b.artists || '').toLowerCase();
         break;
+      case 'label':
+        av = (a.label || '').toLowerCase();
+        bv = (b.label || '').toLowerCase();
+        break;
       case 'genre':
         av = (a.genre || '').toLowerCase();
         bv = (b.genre || '').toLowerCase();
@@ -444,6 +448,10 @@ function sortTrackItems(items, column, dir) {
         av = a.released || '';
         bv = b.released || '';
         break;
+      case 'length':
+        av = trackLengthSortValue(a.length);
+        bv = trackLengthSortValue(b.length);
+        break;
       default:
         return 0;
     }
@@ -455,8 +463,27 @@ function sortTrackItems(items, column, dir) {
 }
 
 function defaultSortDir(column) {
-  if (column === 'released' || column === 'bpm' || column === 'camelot') return 'desc';
+  if (column === 'released' || column === 'bpm' || column === 'camelot' || column === 'length') return 'desc';
   return 'asc';
+}
+
+function trackLengthSortValue(length) {
+  if (!length) return 0;
+  const parts = length.split(':').map(p => parseInt(p, 10));
+  if (parts.some(n => Number.isNaN(n))) return 0;
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return parts[0] || 0;
+}
+
+function formatTrackTime(length) {
+  return length ? escHtml(length) : '—';
+}
+
+function trackThumbHTML(t) {
+  return t.image_uri
+    ? `<img class="search-thumb" src="${escHtml(t.image_uri)}" alt="" loading="lazy" />`
+    : `<div class="search-thumb placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg></div>`;
 }
 
 function camelotSortValue(code) {
@@ -502,12 +529,15 @@ function searchTrackTableHTML(tracks, tableId) {
     <div class="search-table-wrap">
       <div class="search-table search-track-table" id="${tableId || ''}">
         <div class="search-table-head search-track-row">
+          <div class="search-col search-col-cover" aria-hidden="true"></div>
           <div class="search-col search-col-track">${sortHeaderLabel('title', 'Track')}</div>
           <div class="search-col search-col-artists">${sortHeaderLabel('artists', 'Artist')}</div>
+          <div class="search-col search-col-label">${sortHeaderLabel('label', 'Label')}</div>
           <div class="search-col search-col-genre">${sortHeaderLabel('genre', 'Genre')}</div>
           <div class="search-col search-col-bpm">${sortHeaderLabel('bpm', 'BPM')}</div>
           <div class="search-col search-col-key">${sortHeaderLabel('camelot', 'Key')}</div>
           <div class="search-col search-col-released">${sortHeaderLabel('released', 'Released')}</div>
+          <div class="search-col search-col-time">${sortHeaderLabel('length', 'Time')}</div>
           <div class="search-col search-col-actions"></div>
         </div>
         <div class="search-table-body">
@@ -525,24 +555,21 @@ function formatReleased(dateStr) {
 }
 
 function searchTrackRowHTML(t) {
-  const img = t.image_uri
-    ? `<img class="search-thumb" src="${escHtml(t.image_uri)}" alt="" loading="lazy" />`
-    : `<div class="search-thumb placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg></div>`;
-
   return `
     <div class="search-item search-track-row" data-url="${escHtml(t.url)}">
+      <div class="search-col search-col-cover">${trackThumbHTML(t)}</div>
       <div class="search-col search-col-track">
-        ${img}
         <div class="search-item-info">
-          <div class="search-item-title">${escHtml(t.title)}</div>
-          ${t.label ? `<div class="search-item-label">${escHtml(t.label)}</div>` : ''}
+          <div class="search-item-title" title="${escHtml(t.title || '')}">${escHtml(t.title)}</div>
         </div>
       </div>
       <div class="search-col search-col-artists" title="${escHtml(t.artists || '')}">${escHtml(t.artists) || '—'}</div>
+      <div class="search-col search-col-label" title="${escHtml(t.label || '')}">${escHtml(t.label) || '—'}</div>
       <div class="search-col search-col-genre" title="${escHtml(t.genre || '')}">${escHtml(t.genre) || '—'}</div>
       <div class="search-col search-col-bpm">${t.bpm ? escHtml(String(t.bpm)) : '—'}</div>
       <div class="search-col search-col-key">${keyCellHTML(t)}</div>
       <div class="search-col search-col-released">${formatReleased(t.released)}</div>
+      <div class="search-col search-col-time">${formatTrackTime(t.length)}</div>
       <div class="search-col search-col-actions">
         <a class="btn-icon" href="${escHtml(t.url)}" target="_blank" rel="noopener" title="Open on Beatport" onclick="event.stopPropagation()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>

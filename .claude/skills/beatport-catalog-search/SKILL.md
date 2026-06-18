@@ -1,14 +1,14 @@
 ---
 name: beatport-catalog-search
 description: >
-  Add track and artist search to BeatportDL-UI by wiring the Beatport v4
-  /catalog/search/ API through a context-aware Go handler and embedded vanilla
-  JS frontend. Use when extending BeatportDL-UI with catalog search, exposing
-  Client.Search to HTTP, or building a Search sidebar view with download actions.
+  Extend BeatportDL-UI catalog search: Beatport v4 typed search, genre browse,
+  genres API, sortable track table with Camelot keys, and explicit Search-button
+  UX in the embedded vanilla JS frontend. Use when modifying search backend/handlers,
+  /api/search or /api/genres, or the default Search view.
 license: MIT
 metadata:
   author: BeatportDL-UI
-  version: "1.0.0"
+  version: "1.1.0"
 allowed-tools:
   - Read
   - Write
@@ -23,203 +23,175 @@ allowed-tools:
 
 # Beatport Catalog Search
 
-Add authenticated track and artist search to BeatportDL-UI: extend the Go Beatport
-client, expose `GET /api/search`, and build a Search view in the embedded web UI.
+Authenticated track and artist search in BeatportDL-UI: Go Beatport client,
+`GET /api/search`, `GET /api/genres`, and a Search view (default page) in embedded `web/`.
 
 ## Inputs
 
-- `$feature_scope` (optional): `full` (default), `backend`, or `frontend` — limit work to one layer if the other already exists
+- `$feature_scope` (optional): `full` (default), `backend`, or `frontend` — limit work to one layer
 
 ## Goal
 
-Ship catalog search end-to-end:
+Catalog search is shipped end-to-end:
 
-- `GET /api/search?q=...&type=all|tracks|artists` returns trimmed JSON
-- Search sidebar with debounced input, tabs, result cards, and download buttons
-- Downloads reuse existing `POST /api/download` with Beatport track/artist URLs
+- `GET /api/search` — typed search, genre filter, genre-only browse, optional artist top tracks
+- `GET /api/genres` — Beatport genre picklist for the UI
+- Search view: explicit Search button, tabs, options, sortable track table, artist cards, download actions
+- Downloads reuse `POST /api/download` with Beatport track/artist URLs
 - `go build ./...` passes
 
 ## Prerequisites
 
-- BeatportDL-UI stack: Go 1.22 monolith, embedded `web/` (vanilla HTML/CSS/JS)
-- OAuth credentials configured in Settings (same auth as downloads)
+- Go 1.22 monolith, embedded `web/` (vanilla HTML/CSS/JS, no build step)
+- OAuth in Settings (`~/.config/beatportdl-ui/`)
 - Beatport API base: `https://api.beatport.com/v4`
-- Load `golang-context` skill when touching Go HTTP/API code
+- Load `golang-context` skill for Go HTTP/API work
 
 ## Beatport API Reference
 
 | Endpoint | Purpose |
 |----------|---------|
-| `GET /catalog/search/?q={query}&type=tracks&page=1&per_page=25` | Search tracks |
-| `GET /catalog/search/?q={query}&type=artists&page=1&per_page=25` | Search artists |
-| `GET /catalog/search/?q={query}&order_by=-publish_date` | Combined search (nested `{data:[]}` format) |
+| `GET /catalog/search/?q={query}&type=tracks&page=1&per_page=50` | Typed track search |
+| `GET /catalog/search/?q={query}&type=artists&page=1&per_page=50` | Typed artist search |
+| `GET /catalog/search/?q={query}&type=tracks&genre_id={id}` | Search within genre |
+| `GET /catalog/tracks/?genre_id={id}&order_by=-publish_date` | Genre-only browse (no `q`) |
+| `GET /catalog/genres/?page=1&per_page=100` | Genre list |
+| `GET /catalog/artists/{id}/tracks/?per_page=10` | Artist top tracks (use this, not `top-10-tracks`) |
 
 **Rules:**
 
-- Always authenticate before catalog calls (`client.Authenticate()`)
-- Propagate `r.Context()` into new Beatport client methods — never `context.Background()` mid-request
-- Typed search returns paginated `results`; combined search may nest under `data`
-- Search types: `tracks`, `artists`, `labels`, `releases`, `charts`
+- Authenticate before catalog calls (`client.Authenticate()`)
+- Propagate `r.Context()` into client methods — never `context.Background()` mid-request
+- Typed search JSON uses `tracks` or `artists` keys — **not** `results` (decode via `decodeTypedSearchPage`)
+- Apply `order_by=-publish_date` for **track** search only; artist search with `order_by` returns `{}`
+- API `per_page` max is 100; handler clamps UI to 50–200 in steps of 50 and paginates internally
 
-## Steps
+## HTTP API (app)
 
-### 1. Explore codebase and API integration
+### `GET /api/genres`
 
-Read these files first:
+Returns `[{ id, name, slug }]`. Requires credentials (same as search).
 
-- `internal/beatport/client.go` — auth, `apiGet`, existing `Search()`
-- `internal/beatport/types.go` — `Track`, `Artist`, `Paginated`, `SearchResults`
-- `internal/server/handlers.go` — handler patterns (`handleTestAuth`, `handleDownload`)
-- `internal/server/server.go` — route registration
-- `web/index.html`, `web/js/app.js`, `web/css/style.css` — UI patterns
+### `GET /api/search`
 
-Check whether `Client.Search()` exists but is unused (common in this repo). Note gaps:
-no HTTP route, no frontend view, possible response-format mismatch with nested `data`.
+| Param | Values | Notes |
+|-------|--------|-------|
+| `q` | string | Min 2 chars when used; optional if `genre_id` set |
+| `genre_id` | int | Genre filter or genre-only browse |
+| `type` | `all` \| `tracks` \| `artists` | Default `all` |
+| `page` | int | Default 1 |
+| `per_page` | 50–200 | Rounded down to nearest 50 |
+| `include_artists` | `1` / `true` | On tracks tab: also return artists |
+| `top_tracks` | `1` / `true` | Attach up to 10 tracks per artist |
 
-Use web search or Beatport API docs if response shape is unclear.
+**Validation:** `q` or `genre_id` required. Genre-only browse returns tracks only (empty artists).
 
-**Success criteria**: You can describe current auth flow, unused search client code, and exact files to modify.
+**Response:** `{ query, type, tracks?: { count, page, items }, artists?: { count, page, items } }`
 
-**Artifacts**: Mental map of backend vs frontend gaps.
+**`SearchTrackItem` fields:** `id, title, artists, bpm, genre, label, length, key, camelot, released, image_uri, url`
 
----
+- `camelot` from `Key.CamelotCode()` in `types.go` (e.g. `"8A"`)
+- `key` is the musical key name string
 
-### 2. Extend Go Beatport client (context-aware search)
+## Frontend (Search view)
 
-In `internal/beatport/client.go`:
+**Default page:** `#view-search` is active on load; sidebar Search nav is first.
 
-1. Add `apiGetContext(ctx, path, result)` using `http.NewRequestWithContext`
-2. Delegate existing `apiGet` to `apiGetContext(context.Background(), ...)`
-3. Add typed search methods:
+**Layout** (`web/index.html`):
 
-```go
-func (c *Client) SearchTracks(ctx context.Context, query string, page, perPage int) (*Paginated[Track], error)
-func (c *Client) SearchArtists(ctx context.Context, query string, page, perPage int) (*Paginated[Artist], error)
-```
+- `.search-input-row`: `#search-input` + `#btn-search` (explicit trigger)
+- Tabs: All / Tracks / Artists
+- Options: genre (`#search-genre`), max results 50–200, Include artists, Artist top 10
 
-4. Build path: `/catalog/search/?q=...&type=tracks|artists&page=N&per_page=N&order_by=-publish_date`
-5. Handle both paginated (`results`) and nested (`data`) response shapes via flexible decode
+**Search trigger** (`web/js/app.js`):
 
-In `internal/beatport/types.go`:
+- `startSearch()` on `#btn-search` click or Enter
+- **No input debounce** — typing alone does not search
+- Requires 2+ characters **or** selected genre; warn toast otherwise
+- `triggerSearchIfReady()` re-runs when filters/tabs change **if** a search is already active
+- `AbortController` cancels in-flight requests
 
-- Add `Image` to `Artist` if missing (search results include cover art)
-- Add `SearchType` constants if helpful
+**Track results table:**
 
-**Rules:**
+- Columns: Cover, Track, Artist, Label, Genre, BPM, Key, Released, Time, Actions
+- Cover thumbnail in its own column; label and duration in dedicated columns
+- Client-side sort via `state.searchTrackSort` (default: Released desc)
+- Key column: Camelot as **colored text** (`.camelot-code` + `camelotColorStyle()`), musical key name below in `.musical-key-name` — no badge/pill background
 
-- `ctx` is first parameter, named `ctx context.Context`
-- Do not store context in structs
-- Clamp `per_page` (e.g. max 100 client-side, 50 in handler)
+**Artist results:**
 
-**Success criteria**: Client compiles; search methods accept context and return typed paginated results.
+- Cards with optional nested top-10 track table when `top_tracks` enabled
 
-**Execution**: Direct
+**Downloads:** `btn-search-download` → `POST /api/download` → toast + Queue view
 
----
+## Steps (extend or fix)
 
-### 3. Add GET /api/search handler and route
+### 1. Read current implementation
 
-In `internal/server/server.go`:
+| Layer | Path |
+|-------|------|
+| Client | `internal/beatport/client.go` — `SearchTyped`, `ListTracksByGenre`, `GetGenres`, `GetArtistTopTracks` |
+| Types | `internal/beatport/types.go` — `Key.CamelotCode()` |
+| Handlers | `internal/server/handlers.go` — `handleSearch`, `handleGenres`, `trackToSearchItem` |
+| Routes | `internal/server/server.go` |
+| Logging | `internal/logging/logging.go`, `main.go` middleware |
+| UI | `web/index.html`, `web/js/app.js`, `web/css/style.css` |
 
-```go
-mux.HandleFunc("GET /api/search", s.handleSearch)
-```
+### 2. Backend changes
 
-In `internal/server/handlers.go`, implement `handleSearch`:
+When adding search params or fields:
 
-1. Parse query params: `q` (required), `type` (`all|tracks|artists`, default `all`), `page`, `per_page`
-2. Validate credentials (same check as `handleDownload`)
-3. `ctx := r.Context()` — propagate to client search calls
-4. Call `SearchTracks` and/or `SearchArtists` based on `type`
-5. Map to UI DTOs (`SearchTrackItem`, `SearchArtistItem`) with Beatport URLs:
+1. Extend `SearchTyped` path builder in `client.go` (genre_id, order_by rules)
+2. Update `handleSearch` query parsing and DTO mapping
+3. Use `searchTracksPaginated` / `listTracksByGenrePaginated` for multi-page fetches up to `per_page`
+4. Log with `slog` in handlers; HTTP middleware logs requests (skips `/api/ws`)
 
-```
-https://www.beatport.com/track/{slug}/{id}
-https://www.beatport.com/artist/{slug}/{id}
-```
+### 3. Frontend changes
 
-6. Return JSON `{ query, type, tracks?: { count, page, items }, artists?: { count, page, items } }`
+1. Add controls in `#view-search` matching existing `.search-option` / `.pill` patterns
+2. Extend `state` and wire `startSearch()` / `runSearch()` query string
+3. Update `searchTrackTableHTML` / `keyCellHTML` for display changes
+4. Reuse `escHtml()` for all user/API strings
 
-**Success criteria**: Handler returns 400 without `q`, 401 without credentials, 200 with search results for valid requests.
-
-**Artifacts**: `SearchResponsePayload` types, working `/api/search` endpoint.
-
----
-
-### 4. Build Search frontend view
-
-**HTML** (`web/index.html`):
-
-- Add sidebar nav item `data-view="search"`
-- Add `#view-search` section: search input, type tabs (All / Tracks / Artists), status line, results container
-
-**JS** (`web/js/app.js`):
-
-- State: `searchType`, `searchQuery`, `searchController` (AbortController)
-- Debounced input (350ms, min 2 chars)
-- `fetch('/api/search?q=...&type=...')` with abort on new query
-- Render track rows: thumb, title, artists, BPM, genre, key, label
-- Render artist rows: thumb, name
-- Download button → `POST /api/download` with result URL → toast + switch to Queue view
-- External link to Beatport
-
-**CSS** (`web/css/style.css`):
-
-- Match existing card/pill/btn patterns (`search-card`, `search-item`, `btn-search-download`)
-
-**Rules:**
-
-- Reuse existing `state.quality` for download requests
-- Reuse `escHtml()` for XSS safety
-- Do not add a frontend build step — vanilla JS only
-
-**Success criteria**: Search view renders, debounced queries work, download queues a job.
-
-**Execution**: Direct
-
----
-
-### 5. Verify
+### 4. Verify
 
 ```bash
 go build ./...
 ```
 
-Manually (requires credentials):
+Manual (credentials required):
 
 1. Settings → Test Connection
-2. Search → query an artist or track
-3. Click download on a result → job appears in Queue
-
-**Success criteria**: Build passes; search and download flow work with valid Beatport credentials.
-
----
+2. Search: keyword, genre-only browse, each tab
+3. Sort track columns; confirm Camelot text colors
+4. Download from a result → job in Queue
 
 ## Trigger Phrases
 
-Invoke this skill when the user says:
-
 - "add search to BeatportDL"
-- "track and artist search"
-- "expose catalog search API"
-- "search view in the UI"
+- "catalog search API"
+- "search view / genre picklist"
+- "camelot key display"
+- "search button / debounce"
 - "wire up Client.Search"
 
 ## Edge Cases
 
 | Issue | Handling |
 |-------|----------|
-| Empty `q` or `< 2` chars | Return 400 (backend) or show hint (frontend) |
-| No credentials | 400 with message pointing to Settings |
-| Auth failure | 401 from handler |
-| Request cancelled | Respect `ctx.Done()` / AbortController |
-| Combined vs typed response shape | Flexible JSON decode in client |
-| Artist download | Uses existing artist URL parsing in `runJob` — downloads full catalog |
+| Empty `q` and no `genre_id` | 400 backend; warn toast frontend |
+| `q` &lt; 2 chars without genre | Do not search; show hint |
+| No credentials | 400 → Settings |
+| Typed response shape | Decode `tracks`/`artists` keys, not `results` |
+| Artist `order_by=-publish_date` | Omit — API returns empty |
+| `top-10-tracks` endpoint | 404; use `/catalog/artists/{id}/tracks/` |
+| Genre-only + artists tab | Empty artists (no browse-without-query for artists) |
+| Request cancelled | `ctx.Done()` / AbortController |
 
 ## Optional Extensions
 
-- Pagination ("Load more") using `page` param
-- Beatsource support (requires platform-aware API base in client)
+- Server-side sort or pagination UI ("Load more")
+- Beatsource (platform-aware API base)
 - Label/release search tabs
 - Preview playback via `GetTrackStream`
 
@@ -228,7 +200,8 @@ Invoke this skill when the user says:
 | Layer | Path |
 |-------|------|
 | Beatport client | `internal/beatport/client.go` |
-| Types | `internal/beatport/types.go` |
-| Handler | `internal/server/handlers.go` |
+| Types / Camelot | `internal/beatport/types.go` |
+| Handlers | `internal/server/handlers.go` |
 | Routes | `internal/server/server.go` |
+| Logging | `internal/logging/logging.go` |
 | UI | `web/index.html`, `web/js/app.js`, `web/css/style.css` |

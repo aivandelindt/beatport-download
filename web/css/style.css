@@ -867,12 +867,12 @@ label {
 }
 
 .search-track-table {
-  min-width: 760px;
+  min-width: 980px;
 }
 
 .search-track-row {
   display: grid;
-  grid-template-columns: minmax(180px, 2.2fr) minmax(90px, 1.2fr) minmax(88px, 1fr) 52px minmax(88px, 0.9fr) 92px 72px;
+  grid-template-columns: 44px minmax(140px, 1.6fr) minmax(88px, 1.1fr) minmax(80px, 1fr) minmax(80px, 0.95fr) 48px minmax(76px, 0.85fr) 92px 52px 72px;
   gap: 10px;
   align-items: center;
 }
@@ -912,18 +912,25 @@ label {
   white-space: nowrap;
 }
 
-.search-col-track {
+.search-col-cover {
   display: flex;
   align-items: center;
-  gap: 10px;
-  white-space: normal;
+  justify-content: center;
 }
-.search-col-track .search-thumb {
+.search-col-cover .search-thumb {
   width: 40px;
   height: 40px;
 }
+
+.search-col-track {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  white-space: normal;
+}
 .search-col-bpm,
-.search-col-released {
+.search-col-released,
+.search-col-time {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -932,7 +939,8 @@ label {
   white-space: normal;
 }
 .search-table-head .search-col-bpm,
-.search-table-head .search-col-released {
+.search-table-head .search-col-released,
+.search-table-head .search-col-time {
   text-align: right;
 }
 .search-table-head .search-col-key {
