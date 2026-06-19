@@ -338,15 +338,23 @@ async function runSearch(query) {
     if (!res.ok) throw new Error(data.error || 'Search failed');
 
     renderSearchResults(data);
-    const trackCount = data.tracks?.items?.length || 0;
-    const artistCount = data.artists?.items?.length || 0;
-    const total = trackCount + artistCount;
+    const counts = {
+      artists: data.artists?.items?.length || 0,
+      releases: data.releases?.items?.length || 0,
+      tracks: data.tracks?.items?.length || 0,
+      labels: data.labels?.items?.length || 0,
+      charts: data.charts?.items?.length || 0,
+    };
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
     if (total === 0) {
       setSearchStatus('No results found', 'empty');
     } else {
       const parts = [];
-      if (trackCount) parts.push(`${trackCount} track${trackCount !== 1 ? 's' : ''}`);
-      if (artistCount) parts.push(`${artistCount} artist${artistCount !== 1 ? 's' : ''}`);
+      if (counts.artists) parts.push(`${counts.artists} artist${counts.artists !== 1 ? 's' : ''}`);
+      if (counts.releases) parts.push(`${counts.releases} release${counts.releases !== 1 ? 's' : ''}`);
+      if (counts.tracks) parts.push(`${counts.tracks} track${counts.tracks !== 1 ? 's' : ''}`);
+      if (counts.labels) parts.push(`${counts.labels} label${counts.labels !== 1 ? 's' : ''}`);
+      if (counts.charts) parts.push(`${counts.charts} chart${counts.charts !== 1 ? 's' : ''}`);
       setSearchStatus(`Found ${parts.join(', ')}`, 'ok');
     }
   } catch (e) {
@@ -373,26 +381,66 @@ function renderSearchEmpty(msg) {
   </div>`;
 }
 
+function searchSectionHeading(title, count) {
+  const n = count ?? 0;
+  return `<h2 class="search-section-title">${escHtml(title)} <span class="search-section-count">${n}</span></h2>`;
+}
+
 function renderSearchResults(data) {
   state.searchResults = data;
   const resultsEl = $('#search-results');
   const sections = [];
 
+  if (data.artists?.items?.length) {
+    const topTracksBlocks = data.artists.items
+      .filter(a => a.top_tracks?.length)
+      .map(a => searchArtistTopTracksHTML(a))
+      .join('');
+    sections.push(`
+      <div class="search-section" data-section="artists">
+        ${searchSectionHeading('Artists', data.artists.count || data.artists.items.length)}
+        <div class="artist-card-row">
+          ${data.artists.items.map(a => searchArtistCardHTML(a)).join('')}
+        </div>
+        ${topTracksBlocks}
+      </div>`);
+  }
+
+  if (data.releases?.items?.length) {
+    sections.push(`
+      <div class="search-section" data-section="releases">
+        ${searchSectionHeading('Releases', data.releases.count || data.releases.items.length)}
+        <div class="search-list">
+          ${data.releases.items.map(r => searchReleaseHTML(r)).join('')}
+        </div>
+      </div>`);
+  }
+
   if (data.tracks?.items?.length) {
     const tracks = sortTrackItems(data.tracks.items, state.searchTrackSort.column, state.searchTrackSort.dir);
     sections.push(`
       <div class="search-section" data-section="tracks">
-        <h2 class="search-section-title">Tracks <span class="search-count">${data.tracks.count || data.tracks.items.length}</span></h2>
+        ${searchSectionHeading('Tracks', data.tracks.count || data.tracks.items.length)}
         ${searchTrackTableHTML(tracks, 'search-tracks-table')}
       </div>`);
   }
 
-  if (data.artists?.items?.length) {
+  if (data.labels?.items?.length) {
     sections.push(`
-      <div class="search-section" data-section="artists">
-        <h2 class="search-section-title">Artists <span class="search-count">${data.artists.count || data.artists.items.length}</span></h2>
+      <div class="search-section" data-section="labels">
+        ${searchSectionHeading('Labels', data.labels.count || data.labels.items.length)}
         <div class="search-list">
-          ${data.artists.items.map(a => searchArtistHTML(a)).join('')}
+          ${data.labels.items.map(l => searchLabelHTML(l)).join('')}
+        </div>
+      </div>`);
+  }
+
+  if (data.charts?.items?.length) {
+    sections.push(`
+      <div class="search-section" data-section="charts">
+        ${searchSectionHeading('Charts', data.charts.count || data.charts.items.length)}
+        <div class="search-list">
+          ${data.charts.items.map(c => searchChartHTML(c)).join('')}
         </div>
       </div>`);
   }
@@ -405,6 +453,7 @@ function renderSearchResults(data) {
 
   resultsEl.innerHTML = sections.join('');
   bindSearchActions(resultsEl);
+  bindArtistCards(resultsEl);
   bindTrackSortHeaders(resultsEl);
 }
 
@@ -596,44 +645,147 @@ function bindTrackSortHeaders(container) {
   });
 }
 
-function searchArtistHTML(a) {
-  const img = a.image_uri
-    ? `<img class="search-thumb round" src="${escHtml(a.image_uri)}" alt="" loading="lazy" />`
-    : `<div class="search-thumb round placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>`;
-
-  const topTracksHTML = (a.top_tracks?.length)
-    ? `<div class="artist-top-tracks">
-        <div class="artist-top-tracks-label">Top 10</div>
-        ${searchTrackTableHTML(sortTrackItems(a.top_tracks, state.searchTrackSort.column, state.searchTrackSort.dir), '')}
-      </div>`
-    : '';
+function searchArtistCardHTML(a) {
+  const media = a.image_uri
+    ? `<img class="artist-card-img" src="${escHtml(a.image_uri)}" alt="" loading="lazy" />`
+    : `<div class="artist-card-placeholder" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>`;
 
   return `
-    <div class="search-item search-item-artist" data-url="${escHtml(a.url)}">
-      <div class="search-item-main">
-        ${img}
-        <div class="search-item-info">
-          <div class="search-item-title">${escHtml(a.name)}</div>
-          <div class="search-item-meta">Artist${a.top_tracks?.length ? ` · ${a.top_tracks.length} top tracks` : ''}</div>
-        </div>
-        <div class="search-item-actions">
-          <a class="btn-icon" href="${escHtml(a.url)}" target="_blank" rel="noopener" title="Open on Beatport" onclick="event.stopPropagation()">
+    <div class="artist-card" data-url="${escHtml(a.url)}" title="${escHtml(a.name)}">
+      <div class="artist-card-media">
+        ${media}
+        <div class="artist-card-shade"></div>
+        <span class="artist-card-name">${escHtml(a.name)}</span>
+        <div class="artist-card-actions">
+          <a class="btn-icon btn-icon-sm" href="${escHtml(a.url)}" target="_blank" rel="noopener" title="Open on Beatport" onclick="event.stopPropagation()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           </a>
-          <button class="btn-search-download" title="Download all tracks">
+          <button class="btn-search-download btn-search-download-sm" type="button" title="Download all tracks">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </button>
         </div>
       </div>
-      ${topTracksHTML}
     </div>`;
+}
+
+function searchArtistTopTracksHTML(a) {
+  return `
+    <div class="artist-top-tracks-section">
+      <div class="artist-top-tracks-heading">${escHtml(a.name)} · Top tracks</div>
+      ${searchTrackTableHTML(sortTrackItems(a.top_tracks, state.searchTrackSort.column, state.searchTrackSort.dir), '')}
+    </div>`;
+}
+
+function bindArtistCards(container) {
+  $$('.artist-card', container).forEach(card => {
+    card.addEventListener('click', e => {
+      if (e.target.closest('.artist-card-actions')) return;
+      const url = card.dataset.url;
+      if (url) window.open(url, '_blank', 'noopener');
+    });
+  });
+}
+
+function searchCatalogCardHTML({ title, meta, image_uri, url, round, downloadTitle, showDownload = true }) {
+  const img = image_uri
+    ? `<img class="search-thumb${round ? ' round' : ''}" src="${escHtml(image_uri)}" alt="" loading="lazy" />`
+    : `<div class="search-thumb${round ? ' round' : ''} placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg></div>`;
+
+  const downloadBtn = showDownload
+    ? `<button class="btn-search-download" title="${escHtml(downloadTitle || 'Download')}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </button>`
+    : '';
+
+  return `
+    <div class="search-item" data-url="${escHtml(url)}">
+      <div class="search-item-main">
+        ${img}
+        <div class="search-item-info">
+          <div class="search-item-title">${escHtml(title)}</div>
+          <div class="search-item-meta">${escHtml(meta)}</div>
+        </div>
+        <div class="search-item-actions">
+          <a class="btn-icon" href="${escHtml(url)}" target="_blank" rel="noopener" title="Open on Beatport" onclick="event.stopPropagation()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+          ${downloadBtn}
+        </div>
+      </div>
+    </div>`;
+}
+
+function searchReleaseHTML(r) {
+  const img = r.image_uri
+    ? `<img class="search-thumb" src="${escHtml(r.image_uri)}" alt="" loading="lazy" />`
+    : `<div class="search-thumb placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg></div>`;
+
+  const metaParts = ['Release'];
+  if (r.artists) metaParts.push(r.artists);
+  if (r.label) metaParts.push(r.label);
+  if (r.track_count) metaParts.push(`${r.track_count} tracks`);
+  if (r.released) metaParts.push(formatReleased(r.released));
+
+  const tracksHTML = (r.tracks?.length > 1)
+    ? `<div class="release-nested-tracks">
+        ${searchTrackTableHTML(sortTrackItems(r.tracks, state.searchTrackSort.column, state.searchTrackSort.dir), '')}
+      </div>`
+    : '';
+
+  return `
+    <div class="search-item search-item-artist" data-url="${escHtml(r.url)}">
+      <div class="search-item-main">
+        ${img}
+        <div class="search-item-info">
+          <div class="search-item-title">${escHtml(r.title)}</div>
+          <div class="search-item-meta">${escHtml(metaParts.join(' · '))}</div>
+        </div>
+        <div class="search-item-actions">
+          <a class="btn-icon" href="${escHtml(r.url)}" target="_blank" rel="noopener" title="Open on Beatport" onclick="event.stopPropagation()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+          <button class="btn-search-download" title="Download release">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </button>
+        </div>
+      </div>
+      ${tracksHTML}
+    </div>`;
+}
+
+function searchLabelHTML(l) {
+  return searchCatalogCardHTML({
+    title: l.name,
+    meta: 'Label',
+    image_uri: l.image_uri,
+    url: l.url,
+    round: true,
+    showDownload: false,
+  });
+}
+
+function searchChartHTML(c) {
+  const metaParts = ['Chart'];
+  if (c.curator) metaParts.push(c.curator);
+  if (c.genre) metaParts.push(c.genre);
+  if (c.published) metaParts.push(formatReleased(c.published));
+  return searchCatalogCardHTML({
+    title: c.name,
+    meta: metaParts.join(' · '),
+    url: c.url,
+    downloadTitle: 'Download chart',
+  });
 }
 
 function bindSearchActions(container) {
   $$('.btn-search-download', container).forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      const url = btn.closest('.search-track-row')?.dataset.url || btn.closest('.search-item')?.dataset.url;
+      const url = btn.closest('.search-track-row')?.dataset.url
+        || btn.closest('.search-item')?.dataset.url
+        || btn.closest('.artist-card')?.dataset.url;
       if (url) downloadFromSearch(url, btn);
     });
   });

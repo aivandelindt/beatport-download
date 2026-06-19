@@ -11,8 +11,7 @@
 </head>
 <body>
   <div id="app">
-    <!-- Sidebar -->
-    <aside class="sidebar">
+    <header class="topbar">
       <div class="logo">
         <svg class="logo-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2"/>
@@ -22,34 +21,34 @@
         </svg>
         <span>BeatportDL</span>
       </div>
-      <nav class="nav">
-        <button class="nav-item active" data-view="search">
+      <nav class="topnav" aria-label="Main">
+        <button class="nav-item active" data-view="search" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           Search
         </button>
-        <button class="nav-item" data-view="download">
+        <button class="nav-item" data-view="download" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Download
         </button>
-        <button class="nav-item" data-view="queue">
+        <button class="nav-item" data-view="queue" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
           Queue
           <span class="badge" id="queue-badge" style="display:none">0</span>
         </button>
-        <button class="nav-item" data-view="fix">
+        <button class="nav-item" data-view="fix" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
           Fix Tags
         </button>
-        <button class="nav-item" data-view="settings">
+        <button class="nav-item" data-view="settings" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
           Settings
         </button>
       </nav>
-      <div class="sidebar-footer">
+      <div class="topbar-status">
         <div class="status-dot" id="auth-dot"></div>
         <span id="auth-label">Not authenticated</span>
       </div>
-    </aside>
+    </header>
 
     <!-- Main -->
     <main class="main">
@@ -82,8 +81,11 @@
 
           <div class="search-tabs" id="search-tabs">
             <button class="pill active" data-type="all">All</button>
-            <button class="pill" data-type="tracks">Tracks</button>
             <button class="pill" data-type="artists">Artists</button>
+            <button class="pill" data-type="releases">Releases</button>
+            <button class="pill" data-type="tracks">Tracks</button>
+            <button class="pill" data-type="labels">Labels</button>
+            <button class="pill" data-type="charts">Charts</button>
           </div>
 
           <div class="search-options">

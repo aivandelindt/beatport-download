@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -21,6 +22,32 @@ type responseWriter struct {
 func (w *responseWriter) WriteHeader(code int) {
 	w.status = code
 	w.ResponseWriter.WriteHeader(code)
+}
+
+// BeatportAPI logs an outbound HTTP call to the Beatport API (api.beatport.com).
+func BeatportAPI(method, reqURL string, status int, ms int64, err error) {
+	if !strings.Contains(reqURL, "api.beatport.com") && !strings.Contains(reqURL, "api.beatsource.com") {
+		return
+	}
+
+	attrs := []any{
+		"method", method,
+		"url", reqURL,
+		"ms", ms,
+	}
+	if status > 0 {
+		attrs = append(attrs, "status", status)
+	}
+	if err != nil {
+		attrs = append(attrs, "error", err.Error())
+		slog.Warn("beatport api", attrs...)
+		return
+	}
+	if status >= 400 {
+		slog.Warn("beatport api", attrs...)
+		return
+	}
+	slog.Info("beatport api", attrs...)
 }
 
 func HTTPMiddleware(next http.Handler) http.Handler {

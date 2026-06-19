@@ -36,8 +36,11 @@ type Artist struct {
 type SearchType string
 
 const (
-	SearchTypeTracks  SearchType = "tracks"
-	SearchTypeArtists SearchType = "artists"
+	SearchTypeTracks   SearchType = "tracks"
+	SearchTypeArtists  SearchType = "artists"
+	SearchTypeReleases SearchType = "releases"
+	SearchTypeLabels   SearchType = "labels"
+	SearchTypeCharts   SearchType = "charts"
 )
 
 type Genre struct {
@@ -152,10 +155,11 @@ type PlaylistItem struct {
 }
 
 type SearchResults struct {
-	Tracks    []Track    `json:"tracks"`
-	Releases  []Release  `json:"releases"`
-	Artists   []Artist   `json:"artists"`
-	Labels    []Label    `json:"labels"`
+	Tracks   []Track   `json:"tracks"`
+	Releases []Release `json:"releases"`
+	Artists  []Artist  `json:"artists"`
+	Labels   []Label   `json:"labels"`
+	Charts   []Chart   `json:"charts"`
 }
 
 type LinkType int

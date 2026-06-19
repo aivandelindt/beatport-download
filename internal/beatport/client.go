@@ -18,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"beatportdl-ui/internal/logging"
 )
 
 const (
@@ -111,7 +113,7 @@ func (c *Client) fullAuth() error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.doRequest(req)
 	if err != nil {
 		return fmt.Errorf("login request failed: %w", err)
 	}
@@ -124,7 +126,7 @@ func (c *Client) fullAuth() error {
 	// Step 2: Authorize to get code
 	authURL := fmt.Sprintf("%s/auth/o/authorize/?client_id=%s&response_type=code", c.apiBase, beatportClientID)
 	req, _ = http.NewRequest("GET", authURL, nil)
-	resp, err = c.httpClient.Do(req)
+	resp, err = c.doRequest(req)
 	if err != nil {
 		return fmt.Errorf("authorize request failed: %w", err)
 	}
@@ -153,7 +155,7 @@ func (c *Client) fullAuth() error {
 	req, _ = http.NewRequest("POST", c.apiBase+"/auth/o/token/", strings.NewReader(tokenData.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err = c.httpClient.Do(req)
+	resp, err = c.doRequest(req)
 	if err != nil {
 		return fmt.Errorf("token request failed: %w", err)
 	}
@@ -187,7 +189,7 @@ func (c *Client) refreshToken() error {
 	req, _ := http.NewRequest("POST", c.apiBase+"/auth/o/token/", strings.NewReader(tokenData.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.doRequest(req)
 	if err != nil {
 		return err
 	}
@@ -206,6 +208,17 @@ func (c *Client) refreshToken() error {
 	c.credentials.RefreshToken = tokenResp.RefreshToken
 	c.credentials.ExpiresAt = time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
 	return c.saveCredentials()
+}
+
+func (c *Client) doRequest(req *http.Request) (*http.Response, error) {
+	start := time.Now()
+	resp, err := c.httpClient.Do(req)
+	status := 0
+	if resp != nil {
+		status = resp.StatusCode
+	}
+	logging.BeatportAPI(req.Method, req.URL.String(), status, time.Since(start).Milliseconds(), err)
+	return resp, err
 }
 
 func (c *Client) ensureToken() error {
@@ -256,7 +269,7 @@ func (c *Client) apiRequestContext(ctx context.Context, method, path string, bod
 	req.Header.Set("Authorization", "Bearer "+c.credentials.AccessToken)
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.doRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +281,10 @@ func (c *Client) apiRequestContext(ctx context.Context, method, path string, bod
 			return nil, err
 		}
 		req.Header.Set("Authorization", "Bearer "+c.credentials.AccessToken)
-		return c.httpClient.Do(req)
+		resp, err = c.doRequest(req)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return resp, nil
@@ -304,6 +320,24 @@ func (c *Client) GetRelease(id int) (*Release, error) {
 
 func (c *Client) GetReleaseTracks(id int) ([]Track, error) {
 	return c.getAllTracks(fmt.Sprintf("/catalog/releases/%d/tracks/", id))
+}
+
+func (c *Client) ListReleaseTracks(ctx context.Context, releaseID, page, perPage int) (*Paginated[Track], error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 50
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+	var result Paginated[Track]
+	err := c.apiGetContext(ctx, fmt.Sprintf(
+		"/catalog/releases/%d/tracks/?page=%d&per_page=%d",
+		releaseID, page, perPage,
+	), &result)
+	return &result, err
 }
 
 // Playlist methods
@@ -351,19 +385,29 @@ func (c *Client) GetArtist(id int) (*Artist, error) {
 }
 
 func (c *Client) GetArtistTopTracks(ctx context.Context, id int, perPage int) ([]Track, error) {
-	if perPage < 1 {
-		perPage = 10
-	}
-	if perPage > 100 {
-		perPage = 100
-	}
-
-	var page Paginated[Track]
-	err := c.apiGetContext(ctx, fmt.Sprintf("/catalog/artists/%d/tracks/?per_page=%d&page=1", id, perPage), &page)
+	page, err := c.ListArtistTracks(ctx, id, 1, perPage)
 	if err != nil {
 		return nil, err
 	}
 	return page.Results, nil
+}
+
+func (c *Client) ListArtistTracks(ctx context.Context, artistID, page, perPage int) (*Paginated[Track], error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 50
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+	var result Paginated[Track]
+	err := c.apiGetContext(ctx, fmt.Sprintf(
+		"/catalog/artists/%d/tracks/?page=%d&per_page=%d&order_by=-publish_date",
+		artistID, page, perPage,
+	), &result)
+	return &result, err
 }
 
 func (c *Client) GetArtistTracks(id int) ([]Track, error) {
@@ -411,8 +455,29 @@ func (c *Client) ListTracksByGenre(ctx context.Context, genreID, page, perPage i
 // Search
 
 func (c *Client) Search(ctx context.Context, query string) (*SearchResults, error) {
+	return c.SearchCombined(ctx, query, 1, 25, 0)
+}
+
+// SearchCombined queries /catalog/search/ without a type filter (tracks, artists, etc.).
+func (c *Client) SearchCombined(ctx context.Context, query string, page, perPage, genreID int) (*SearchResults, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 25
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+	path := fmt.Sprintf(
+		"/catalog/search/?q=%s&page=%d&per_page=%d&order_by=-publish_date",
+		url.QueryEscape(query), page, perPage,
+	)
+	if genreID > 0 {
+		path += fmt.Sprintf("&genre_id=%d", genreID)
+	}
 	var results SearchResults
-	err := c.apiGetContext(ctx, fmt.Sprintf("/catalog/search/?q=%s&order_by=-publish_date", url.QueryEscape(query)), &results)
+	err := c.apiGetContext(ctx, path, &results)
 	return &results, err
 }
 
@@ -469,6 +534,9 @@ func decodeTypedSearchPage(body []byte, searchType SearchType) (*Paginated[json.
 		Previous string            `json:"previous"`
 		Tracks   []json.RawMessage `json:"tracks"`
 		Artists  []json.RawMessage `json:"artists"`
+		Releases []json.RawMessage `json:"releases"`
+		Labels   []json.RawMessage `json:"labels"`
+		Charts   []json.RawMessage `json:"charts"`
 		Results  []json.RawMessage `json:"results"`
 		Data     []json.RawMessage `json:"data"`
 	}
@@ -486,6 +554,12 @@ func decodeTypedSearchPage(body []byte, searchType SearchType) (*Paginated[json.
 			items = page.Tracks
 		case SearchTypeArtists:
 			items = page.Artists
+		case SearchTypeReleases:
+			items = page.Releases
+		case SearchTypeLabels:
+			items = page.Labels
+		case SearchTypeCharts:
+			items = page.Charts
 		}
 	}
 
@@ -511,6 +585,30 @@ func (c *Client) SearchArtists(ctx context.Context, query string, page, perPage,
 		return nil, err
 	}
 	return decodeSearchItems[Artist](raw)
+}
+
+func (c *Client) SearchReleases(ctx context.Context, query string, page, perPage, genreID int) (*Paginated[Release], error) {
+	raw, err := c.SearchTyped(ctx, query, SearchTypeReleases, page, perPage, genreID)
+	if err != nil {
+		return nil, err
+	}
+	return decodeSearchItems[Release](raw)
+}
+
+func (c *Client) SearchLabels(ctx context.Context, query string, page, perPage, genreID int) (*Paginated[Label], error) {
+	raw, err := c.SearchTyped(ctx, query, SearchTypeLabels, page, perPage, genreID)
+	if err != nil {
+		return nil, err
+	}
+	return decodeSearchItems[Label](raw)
+}
+
+func (c *Client) SearchCharts(ctx context.Context, query string, page, perPage, genreID int) (*Paginated[Chart], error) {
+	raw, err := c.SearchTyped(ctx, query, SearchTypeCharts, page, perPage, genreID)
+	if err != nil {
+		return nil, err
+	}
+	return decodeSearchItems[Chart](raw)
 }
 
 func decodeSearchItems[T any](raw *Paginated[json.RawMessage]) (*Paginated[T], error) {
