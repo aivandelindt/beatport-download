@@ -19,7 +19,17 @@ const state = {
   searchController: null,
   searchResults: null,
   searchTrackSort: { column: 'released', dir: 'desc' },
+  searchSectionCollapsed: {
+    artists: false,
+    releases: false,
+    tracks: false,
+    labels: false,
+    charts: false,
+  },
+  searchReleaseExpanded: {},
 };
+
+const COLLAPSIBLE_SEARCH_SECTIONS = ['artists', 'releases', 'tracks', 'labels', 'charts'];
 
 // ─── WebSocket ────────────────────────────────────────────────────────────────
 let ws = null;
@@ -256,6 +266,14 @@ function initSearch() {
 
   btnSearch?.addEventListener('click', () => startSearch());
 
+  $('#search-expand-all')?.addEventListener('click', () => {
+    expandAllSearchSections();
+  });
+
+  $('#search-collapse-all')?.addEventListener('click', () => {
+    collapseAllSearchSections();
+  });
+
   input?.addEventListener('input', () => {
     const q = input.value.trim();
     if (q.length < 2 && !state.searchGenreId) {
@@ -365,12 +383,21 @@ async function runSearch(query) {
 }
 
 function setSearchStatus(msg, kind = '') {
+  const bar = $('#search-status-bar');
   const el = $('#search-status');
-  if (!el) return;
-  if (!msg) { el.style.display = 'none'; return; }
-  el.style.display = '';
+  const actions = $('#search-status-actions');
+  if (!el || !bar) return;
+  if (!msg) {
+    bar.style.display = 'none';
+    if (actions) actions.style.display = 'none';
+    return;
+  }
+  bar.style.display = '';
   el.textContent = msg;
   el.className = 'search-status' + (kind ? ' ' + kind : '');
+  if (actions) {
+    actions.style.display = kind === 'ok' ? '' : 'none';
+  }
 }
 
 function renderSearchEmpty(msg) {
@@ -381,9 +408,53 @@ function renderSearchEmpty(msg) {
   </div>`;
 }
 
-function searchSectionHeading(title, count) {
+function searchSectionHeading(title, count, sectionKey) {
   const n = count ?? 0;
-  return `<h2 class="search-section-title">${escHtml(title)} <span class="search-section-count">${n}</span></h2>`;
+  const collapsible = COLLAPSIBLE_SEARCH_SECTIONS.includes(sectionKey);
+  const label = `${escHtml(title)} <span class="search-section-count">${n}</span>`;
+
+  if (!collapsible) {
+    return `<h2 class="search-section-title"><span class="search-section-heading-text">${label}</span></h2>`;
+  }
+
+  const collapsed = !!state.searchSectionCollapsed[sectionKey];
+  return `<button type="button" class="search-section-title search-section-toggle" data-section-toggle="${sectionKey}" aria-expanded="${!collapsed}">
+    <svg class="search-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+    <span class="search-section-heading-text">${label}</span>
+  </button>`;
+}
+
+function searchSectionWrap(sectionKey, title, count, bodyHTML) {
+  const collapsed = COLLAPSIBLE_SEARCH_SECTIONS.includes(sectionKey) && !!state.searchSectionCollapsed[sectionKey];
+  return `
+    <div class="search-section${collapsed ? ' is-collapsed' : ''}" data-section="${sectionKey}">
+      ${searchSectionHeading(title, count, sectionKey)}
+      <div class="search-section-body">
+        ${bodyHTML}
+      </div>
+    </div>`;
+}
+
+function setAllReleaseExpanded(expanded) {
+  const releases = state.searchResults?.releases?.items;
+  if (!releases?.length) return;
+  releases.forEach(r => {
+    if (r.tracks?.length > 1) {
+      state.searchReleaseExpanded[r.id] = expanded;
+    }
+  });
+}
+
+function expandAllSearchSections() {
+  COLLAPSIBLE_SEARCH_SECTIONS.forEach(k => { state.searchSectionCollapsed[k] = false; });
+  setAllReleaseExpanded(true);
+  if (state.searchResults) renderSearchResults(state.searchResults);
+}
+
+function collapseAllSearchSections() {
+  COLLAPSIBLE_SEARCH_SECTIONS.forEach(k => { state.searchSectionCollapsed[k] = true; });
+  setAllReleaseExpanded(false);
+  if (state.searchResults) renderSearchResults(state.searchResults);
 }
 
 function renderSearchResults(data) {
@@ -396,53 +467,39 @@ function renderSearchResults(data) {
       .filter(a => a.top_tracks?.length)
       .map(a => searchArtistTopTracksHTML(a))
       .join('');
-    sections.push(`
-      <div class="search-section" data-section="artists">
-        ${searchSectionHeading('Artists', data.artists.count || data.artists.items.length)}
+    sections.push(searchSectionWrap('artists', 'Artists', data.artists.count || data.artists.items.length, `
         <div class="artist-card-row">
           ${data.artists.items.map(a => searchArtistCardHTML(a)).join('')}
         </div>
-        ${topTracksBlocks}
-      </div>`);
+        ${topTracksBlocks}`));
   }
 
   if (data.releases?.items?.length) {
-    sections.push(`
-      <div class="search-section" data-section="releases">
-        ${searchSectionHeading('Releases', data.releases.count || data.releases.items.length)}
+    const releases = sortReleasesByDate(data.releases.items);
+    sections.push(searchSectionWrap('releases', 'Releases', data.releases.count || releases.length, `
         <div class="search-list">
-          ${data.releases.items.map(r => searchReleaseHTML(r)).join('')}
-        </div>
-      </div>`);
+          ${releases.map(r => searchReleaseHTML(r)).join('')}
+        </div>`));
   }
 
   if (data.tracks?.items?.length) {
     const tracks = sortTrackItems(data.tracks.items, state.searchTrackSort.column, state.searchTrackSort.dir);
-    sections.push(`
-      <div class="search-section" data-section="tracks">
-        ${searchSectionHeading('Tracks', data.tracks.count || data.tracks.items.length)}
-        ${searchTrackTableHTML(tracks, 'search-tracks-table')}
-      </div>`);
+    sections.push(searchSectionWrap('tracks', 'Tracks', data.tracks.count || data.tracks.items.length, `
+        ${searchTrackTableHTML(tracks, 'search-tracks-table')}`));
   }
 
   if (data.labels?.items?.length) {
-    sections.push(`
-      <div class="search-section" data-section="labels">
-        ${searchSectionHeading('Labels', data.labels.count || data.labels.items.length)}
-        <div class="search-list">
-          ${data.labels.items.map(l => searchLabelHTML(l)).join('')}
-        </div>
-      </div>`);
+    sections.push(searchSectionWrap('labels', 'Labels', data.labels.count || data.labels.items.length, `
+        <div class="artist-card-row">
+          ${data.labels.items.map(l => searchLabelCardHTML(l)).join('')}
+        </div>`));
   }
 
   if (data.charts?.items?.length) {
-    sections.push(`
-      <div class="search-section" data-section="charts">
-        ${searchSectionHeading('Charts', data.charts.count || data.charts.items.length)}
-        <div class="search-list">
-          ${data.charts.items.map(c => searchChartHTML(c)).join('')}
-        </div>
-      </div>`);
+    sections.push(searchSectionWrap('charts', 'Charts', data.charts.count || data.charts.items.length, `
+        <div class="artist-card-row">
+          ${data.charts.items.map(c => searchChartCardHTML(c)).join('')}
+        </div>`));
   }
 
   if (sections.length === 0) {
@@ -454,7 +511,23 @@ function renderSearchResults(data) {
   resultsEl.innerHTML = sections.join('');
   bindSearchActions(resultsEl);
   bindArtistCards(resultsEl);
+  bindReleaseRows(resultsEl);
+  bindSearchSectionToggles(resultsEl);
   bindTrackSortHeaders(resultsEl);
+}
+
+function bindSearchSectionToggles(container) {
+  $$('[data-section-toggle]', container).forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.sectionToggle;
+      if (!key) return;
+      state.searchSectionCollapsed[key] = !state.searchSectionCollapsed[key];
+      const section = btn.closest('.search-section');
+      const collapsed = !!state.searchSectionCollapsed[key];
+      section?.classList.toggle('is-collapsed', collapsed);
+      btn.setAttribute('aria-expanded', String(!collapsed));
+    });
+  });
 }
 
 function sortTrackItems(items, column, dir) {
@@ -657,7 +730,9 @@ function searchArtistCardHTML(a) {
       <div class="artist-card-media">
         ${media}
         <div class="artist-card-shade"></div>
-        <span class="artist-card-name">${escHtml(a.name)}</span>
+        <div class="artist-card-text">
+          <span class="artist-card-name">${escHtml(a.name)}</span>
+        </div>
         <div class="artist-card-actions">
           <a class="btn-icon btn-icon-sm" href="${escHtml(a.url)}" target="_blank" rel="noopener" title="Open on Beatport" onclick="event.stopPropagation()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
@@ -688,33 +763,8 @@ function bindArtistCards(container) {
   });
 }
 
-function searchCatalogCardHTML({ title, meta, image_uri, url, round, downloadTitle, showDownload = true }) {
-  const img = image_uri
-    ? `<img class="search-thumb${round ? ' round' : ''}" src="${escHtml(image_uri)}" alt="" loading="lazy" />`
-    : `<div class="search-thumb${round ? ' round' : ''} placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg></div>`;
-
-  const downloadBtn = showDownload
-    ? `<button class="btn-search-download" title="${escHtml(downloadTitle || 'Download')}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      </button>`
-    : '';
-
-  return `
-    <div class="search-item" data-url="${escHtml(url)}">
-      <div class="search-item-main">
-        ${img}
-        <div class="search-item-info">
-          <div class="search-item-title">${escHtml(title)}</div>
-          <div class="search-item-meta">${escHtml(meta)}</div>
-        </div>
-        <div class="search-item-actions">
-          <a class="btn-icon" href="${escHtml(url)}" target="_blank" rel="noopener" title="Open on Beatport" onclick="event.stopPropagation()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-          </a>
-          ${downloadBtn}
-        </div>
-      </div>
-    </div>`;
+function sortReleasesByDate(items) {
+  return [...items].sort((a, b) => (b.released || '').localeCompare(a.released || ''));
 }
 
 function searchReleaseHTML(r) {
@@ -728,15 +778,23 @@ function searchReleaseHTML(r) {
   if (r.track_count) metaParts.push(`${r.track_count} tracks`);
   if (r.released) metaParts.push(formatReleased(r.released));
 
-  const tracksHTML = (r.tracks?.length > 1)
+  const hasTracks = (r.tracks?.length > 1);
+  const expanded = !!state.searchReleaseExpanded[r.id];
+  const expandableClass = hasTracks ? ' search-item-release-expandable' : '';
+  const expandedClass = hasTracks && expanded ? ' is-expanded' : '';
+
+  const tracksHTML = hasTracks
     ? `<div class="release-nested-tracks">
         ${searchTrackTableHTML(sortTrackItems(r.tracks, state.searchTrackSort.column, state.searchTrackSort.dir), '')}
       </div>`
     : '';
 
   return `
-    <div class="search-item search-item-artist" data-url="${escHtml(r.url)}">
+    <div class="search-item search-item-release search-item-artist${expandableClass}${expandedClass}" data-release-id="${r.id}" data-url="${escHtml(r.url)}">
       <div class="search-item-main">
+        <span class="search-release-chevron${hasTracks ? '' : ' is-placeholder'}" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </span>
         ${img}
         <div class="search-item-info">
           <div class="search-item-title">${escHtml(r.title)}</div>
@@ -746,7 +804,7 @@ function searchReleaseHTML(r) {
           <a class="btn-icon" href="${escHtml(r.url)}" target="_blank" rel="noopener" title="Open on Beatport" onclick="event.stopPropagation()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           </a>
-          <button class="btn-search-download" title="Download release">
+          <button class="btn-search-download" type="button" title="Download release">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </button>
         </div>
@@ -755,28 +813,73 @@ function searchReleaseHTML(r) {
     </div>`;
 }
 
-function searchLabelHTML(l) {
-  return searchCatalogCardHTML({
-    title: l.name,
-    meta: 'Label',
-    image_uri: l.image_uri,
-    url: l.url,
-    round: true,
-    showDownload: false,
+function bindReleaseRows(container) {
+  $$('.search-item-release-expandable', container).forEach(row => {
+    const main = row.querySelector('.search-item-main');
+    if (!main) return;
+    main.addEventListener('click', e => {
+      if (e.target.closest('.search-item-actions')) return;
+      const id = parseInt(row.dataset.releaseId, 10);
+      row.classList.toggle('is-expanded');
+      if (id) state.searchReleaseExpanded[id] = row.classList.contains('is-expanded');
+    });
+    main.style.cursor = 'pointer';
   });
 }
 
-function searchChartHTML(c) {
-  const metaParts = ['Chart'];
-  if (c.curator) metaParts.push(c.curator);
-  if (c.genre) metaParts.push(c.genre);
-  if (c.published) metaParts.push(formatReleased(c.published));
-  return searchCatalogCardHTML({
-    title: c.name,
-    meta: metaParts.join(' · '),
-    url: c.url,
-    downloadTitle: 'Download chart',
-  });
+function searchChartCardHTML(c) {
+  const cover = c.image_uri
+    ? `<img class="artist-card-img" src="${escHtml(c.image_uri)}" alt="" loading="lazy" />`
+    : `<div class="artist-card-placeholder" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      </div>`;
+
+  const curator = c.curator
+    ? `<span class="artist-card-sub">${escHtml(c.curator)}</span>`
+    : '';
+
+  return `
+    <div class="artist-card chart-card" data-url="${escHtml(c.url)}" title="${escHtml(c.name)}">
+      <div class="artist-card-media">
+        <div class="artist-card-cover">${cover}</div>
+        <div class="artist-card-text">
+          <span class="artist-card-name">${escHtml(c.name)}</span>
+          ${curator}
+        </div>
+        <div class="artist-card-actions">
+          <a class="btn-icon btn-icon-sm" href="${escHtml(c.url)}" target="_blank" rel="noopener" title="Open on Beatport" onclick="event.stopPropagation()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+          <button class="btn-search-download btn-search-download-sm" type="button" title="Download chart">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function searchLabelCardHTML(l) {
+  const cover = l.image_uri
+    ? `<img class="artist-card-img" src="${escHtml(l.image_uri)}" alt="" loading="lazy" />`
+    : `<div class="artist-card-placeholder" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h10v10H7z"/></svg>
+      </div>`;
+
+  return `
+    <div class="artist-card chart-card label-card" data-url="${escHtml(l.url)}" title="${escHtml(l.name)}">
+      <div class="artist-card-media">
+        <div class="artist-card-cover">${cover}</div>
+        <div class="artist-card-text">
+          <span class="artist-card-name">${escHtml(l.name)}</span>
+          <span class="artist-card-sub">Label</span>
+        </div>
+        <div class="artist-card-actions">
+          <a class="btn-icon btn-icon-sm" href="${escHtml(l.url)}" target="_blank" rel="noopener" title="Open on Beatport" onclick="event.stopPropagation()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>`;
 }
 
 function bindSearchActions(container) {

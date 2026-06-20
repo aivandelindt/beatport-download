@@ -117,7 +117,13 @@
           </div>
         </div>
 
-        <div class="search-status" id="search-status" style="display:none"></div>
+        <div class="search-status-bar" id="search-status-bar" style="display:none">
+          <p class="search-status" id="search-status"></p>
+          <div class="search-status-actions" id="search-status-actions" style="display:none">
+            <button type="button" class="btn-text" id="search-expand-all">Expand all</button>
+            <button type="button" class="btn-text" id="search-collapse-all">Collapse all</button>
+          </div>
+        </div>
 
         <div class="search-results" id="search-results">
           <div class="empty-state">
@@ -306,6 +312,29 @@
                 <span class="toggle-slider"></span>
                 Auto-fix tags after download (strip track numbers)
               </label>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h2>Search results</h2>
+            <p class="field-hint">Maximum items shown per section on the Search page (Artists, Releases, Labels, Charts).</p>
+            <div class="field-row">
+              <div class="field">
+                <label>Artists</label>
+                <input type="number" name="search_limit_artists" class="text-input" min="1" max="100" />
+              </div>
+              <div class="field">
+                <label>Releases</label>
+                <input type="number" name="search_limit_releases" class="text-input" min="1" max="100" />
+              </div>
+              <div class="field">
+                <label>Labels</label>
+                <input type="number" name="search_limit_labels" class="text-input" min="1" max="100" />
+              </div>
+              <div class="field">
+                <label>Charts</label>
+                <input type="number" name="search_limit_charts" class="text-input" min="1" max="100" />
+              </div>
             </div>
           </div>
 

@@ -499,7 +499,7 @@ func (c *Client) SearchTyped(ctx context.Context, query string, searchType Searc
 	if genreID > 0 {
 		path += fmt.Sprintf("&genre_id=%d", genreID)
 	}
-	if searchType == SearchTypeTracks {
+	if searchType == SearchTypeTracks || searchType == SearchTypeReleases {
 		path += "&order_by=-publish_date"
 	}
 

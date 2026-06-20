@@ -159,6 +159,7 @@ type SearchChartItem struct {
 	Curator   string `json:"curator,omitempty"`
 	Genre     string `json:"genre,omitempty"`
 	Published string `json:"published,omitempty"`
+	ImageURI  string `json:"image_uri,omitempty"`
 	URL       string `json:"url"`
 }
 
@@ -315,6 +316,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		"labels", searchResultCount(payload.Labels),
 		"charts", searchResultCount(payload.Charts),
 	)
+	applySearchLimits(&payload, s.searchLimits())
 	respond(w, 200, payload)
 }
 
@@ -323,6 +325,49 @@ func searchResultCount[T any](page *SearchResultPage[T]) int {
 		return 0
 	}
 	return len(page.Items)
+}
+
+type searchLimits struct {
+	Artists  int
+	Releases int
+	Labels   int
+	Charts   int
+}
+
+func (s *Server) searchLimits() searchLimits {
+	s.cfgMu.RLock()
+	defer s.cfgMu.RUnlock()
+	return searchLimits{
+		Artists:  s.cfg.SearchLimitArtists,
+		Releases: s.cfg.SearchLimitReleases,
+		Labels:   s.cfg.SearchLimitLabels,
+		Charts:   s.cfg.SearchLimitCharts,
+	}
+}
+
+func applySearchLimits(payload *SearchResponsePayload, limits searchLimits) {
+	if payload.Artists != nil && limits.Artists > 0 && len(payload.Artists.Items) > limits.Artists {
+		payload.Artists.Items = payload.Artists.Items[:limits.Artists]
+		payload.Artists.Count = len(payload.Artists.Items)
+	}
+	if payload.Releases != nil && limits.Releases > 0 && len(payload.Releases.Items) > limits.Releases {
+		payload.Releases.Items = payload.Releases.Items[:limits.Releases]
+		payload.Releases.Count = len(payload.Releases.Items)
+	}
+	if payload.Labels != nil && limits.Labels > 0 && len(payload.Labels.Items) > limits.Labels {
+		payload.Labels.Items = payload.Labels.Items[:limits.Labels]
+		payload.Labels.Count = len(payload.Labels.Items)
+	}
+	if payload.Charts != nil && limits.Charts > 0 && len(payload.Charts.Items) > limits.Charts {
+		payload.Charts.Items = payload.Charts.Items[:limits.Charts]
+		payload.Charts.Count = len(payload.Charts.Items)
+	}
+}
+
+func sortReleasesByDateDesc(releases []beatport.Release) {
+	sort.Slice(releases, func(i, j int) bool {
+		return releases[i].NewReleaseDate > releases[j].NewReleaseDate
+	})
 }
 
 func fillAllSearchResults(ctx context.Context, client *beatport.Client, query string, page, perPage, genreID int, topTracks bool, payload *SearchResponsePayload) error {
@@ -446,6 +491,7 @@ func artistPageFromArtists(artists []beatport.Artist, page int, topTracks bool, 
 }
 
 func releasePageFromReleases(ctx context.Context, client *beatport.Client, releases []beatport.Release, page int) *SearchResultPage[SearchReleaseItem] {
+	sortReleasesByDateDesc(releases)
 	items := make([]SearchReleaseItem, 0, len(releases))
 	for _, r := range releases {
 		item := releaseToSearchItem(r)
@@ -994,6 +1040,9 @@ func chartToSearchItem(c beatport.Chart) SearchChartItem {
 	}
 	if c.Person != nil {
 		item.Curator = c.Person.Name
+		if c.Person.Image.URI != "" {
+			item.ImageURI = c.Person.Image.URI
+		}
 	}
 	if c.Genre != nil {
 		item.Genre = c.Genre.Name

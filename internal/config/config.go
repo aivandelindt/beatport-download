@@ -8,30 +8,38 @@ import (
 )
 
 type Config struct {
-	Username          string `yaml:"username"           json:"username"`
-	Password          string `yaml:"password"           json:"password"`
-	Quality           string `yaml:"quality"            json:"quality"`
-	OutputDir         string `yaml:"output_dir"         json:"output_dir"`
-	MaxWorkers        int    `yaml:"max_workers"        json:"max_workers"`
-	SaveCover         bool   `yaml:"save_cover"         json:"save_cover"`
-	EmbedCover        bool   `yaml:"embed_cover"        json:"embed_cover"`
-	StripTrackNumbers bool   `yaml:"strip_track_numbers" json:"strip_track_numbers"`
-	AutoFixMetadata   bool   `yaml:"auto_fix_metadata"  json:"auto_fix_metadata"`
-	CreateSubdirs     bool   `yaml:"create_subdirs"     json:"create_subdirs"`
-	Port              int    `yaml:"port"               json:"port"`
+	Username           string `yaml:"username"            json:"username"`
+	Password           string `yaml:"password"            json:"password"`
+	Quality            string `yaml:"quality"             json:"quality"`
+	OutputDir          string `yaml:"output_dir"          json:"output_dir"`
+	MaxWorkers         int    `yaml:"max_workers"         json:"max_workers"`
+	SaveCover          bool   `yaml:"save_cover"          json:"save_cover"`
+	EmbedCover         bool   `yaml:"embed_cover"         json:"embed_cover"`
+	StripTrackNumbers  bool   `yaml:"strip_track_numbers" json:"strip_track_numbers"`
+	AutoFixMetadata    bool   `yaml:"auto_fix_metadata"   json:"auto_fix_metadata"`
+	CreateSubdirs      bool   `yaml:"create_subdirs"      json:"create_subdirs"`
+	Port               int    `yaml:"port"                json:"port"`
+	SearchLimitArtists  int   `yaml:"search_limit_artists"  json:"search_limit_artists"`
+	SearchLimitReleases int   `yaml:"search_limit_releases" json:"search_limit_releases"`
+	SearchLimitLabels   int   `yaml:"search_limit_labels"   json:"search_limit_labels"`
+	SearchLimitCharts   int   `yaml:"search_limit_charts"   json:"search_limit_charts"`
 }
 
 func DefaultConfig() *Config {
 	return &Config{
-		Quality:           "lossless",
-		OutputDir:         defaultOutputDir(),
-		MaxWorkers:        2,
-		SaveCover:         true,
-		EmbedCover:        true,
-		StripTrackNumbers: false,
-		AutoFixMetadata:   false,
-		CreateSubdirs:     true,
-		Port:              8989,
+		Quality:             "lossless",
+		OutputDir:           defaultOutputDir(),
+		MaxWorkers:          2,
+		SaveCover:           true,
+		EmbedCover:          true,
+		StripTrackNumbers:   false,
+		AutoFixMetadata:     false,
+		CreateSubdirs:       true,
+		Port:                8989,
+		SearchLimitArtists:  10,
+		SearchLimitReleases: 10,
+		SearchLimitLabels:   10,
+		SearchLimitCharts:   10,
 	}
 }
 
@@ -96,5 +104,17 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Port <= 0 {
 		c.Port = 8989
+	}
+	if c.SearchLimitArtists <= 0 {
+		c.SearchLimitArtists = 10
+	}
+	if c.SearchLimitReleases <= 0 {
+		c.SearchLimitReleases = 10
+	}
+	if c.SearchLimitLabels <= 0 {
+		c.SearchLimitLabels = 10
+	}
+	if c.SearchLimitCharts <= 0 {
+		c.SearchLimitCharts = 10
 	}
 }

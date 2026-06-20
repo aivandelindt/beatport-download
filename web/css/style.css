@@ -834,12 +834,40 @@ label {
   margin-top: 18px;
 }
 
+.search-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
 .search-status {
   font-size: 0.82rem;
   color: var(--text-2);
-  margin-bottom: 16px;
+  margin-bottom: 0;
   min-height: 1.2em;
+  flex: 1;
+  min-width: 0;
 }
+.search-status-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.btn-text {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--font);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 0;
+}
+.btn-text:hover { text-decoration: underline; }
+
 .search-status.loading { color: var(--accent); }
 .search-status.error   { color: var(--red); }
 .search-status.empty   { color: var(--text-3); }
@@ -864,6 +892,30 @@ label {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+.search-section-toggle {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  transition: color 0.15s;
+}
+.search-section-toggle:hover { color: var(--accent); }
+.search-section-chevron {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--text-3);
+  transition: transform 0.15s;
+}
+.search-section.is-collapsed .search-section-chevron {
+  transform: rotate(-90deg);
+}
+.search-section.is-collapsed .search-section-body {
+  display: none;
 }
 .search-section-count {
   display: inline-flex;
@@ -946,15 +998,32 @@ label {
 }
 
 .artist-card-name {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.artist-card-text {
   position: absolute;
   left: 12px;
   right: 12px;
   bottom: 10px;
   z-index: 1;
-  font-size: 0.92rem;
-  font-weight: 700;
+  min-width: 0;
+}
+
+.artist-card-sub {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.78rem;
+  font-weight: 500;
   line-height: 1.2;
-  color: #fff;
+  color: rgba(255, 255, 255, 0.88);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -971,6 +1040,72 @@ label {
   transition: opacity 0.15s;
 }
 .artist-card:hover .artist-card-actions { opacity: 1; }
+
+.chart-card {
+  flex: 0 0 220px;
+  width: 220px;
+  align-self: flex-start;
+}
+.chart-card .artist-card-media {
+  aspect-ratio: unset;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.chart-card .artist-card-cover {
+  position: relative;
+  height: 96px;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: #23252e;
+}
+.chart-card .artist-card-cover .artist-card-img,
+.chart-card .artist-card-cover .artist-card-placeholder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.chart-card .artist-card-text {
+  position: static;
+  padding: 10px 12px 12px;
+  flex: 1;
+  min-width: 0;
+}
+.chart-card .artist-card-name {
+  color: var(--text);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  word-wrap: break-word;
+  line-height: 1.3;
+}
+.chart-card .artist-card-sub {
+  color: var(--text-2);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  margin-top: 4px;
+}
+.chart-card .artist-card-actions {
+  top: 6px;
+  right: 6px;
+}
+
+.search-item-release .search-item-main {
+  display: grid;
+  grid-template-columns: 18px 48px minmax(0, 1fr) auto;
+  column-gap: 12px;
+  align-items: center;
+}
+.search-release-chevron.is-placeholder {
+  visibility: hidden;
+}
+.search-release-chevron svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
 
 .btn-icon-sm {
   width: 28px;
@@ -1002,7 +1137,7 @@ label {
 
 .search-track-row {
   display: grid;
-  grid-template-columns: 44px minmax(140px, 1.6fr) minmax(88px, 1.1fr) minmax(80px, 1fr) minmax(80px, 0.95fr) 48px minmax(76px, 0.85fr) 92px 52px 72px;
+  grid-template-columns: 44px minmax(140px, 1.6fr) minmax(88px, 1.1fr) minmax(80px, 1fr) minmax(80px, 0.95fr) 48px minmax(76px, 0.85fr) 92px 52px minmax(72px, auto);
   gap: 10px;
   align-items: center;
 }
@@ -1106,6 +1241,9 @@ label {
   justify-content: flex-end;
   gap: 4px;
   overflow: visible;
+  justify-self: end;
+  width: 100%;
+  padding-right: 2px;
 }
 
 .search-sort-btn {
@@ -1141,7 +1279,27 @@ label {
 .release-nested-tracks {
   border-top: 1px solid var(--border);
   background: var(--bg-input);
-  padding: 6px 12px 10px 76px;
+  padding: 6px 12px 10px 102px;
+}
+.search-item-release .release-nested-tracks {
+  display: none;
+}
+.search-item-release.is-expanded .release-nested-tracks {
+  display: block;
+}
+.search-release-chevron {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--text-3);
+  transition: transform 0.15s ease;
+}
+.search-release-chevron svg {
+  width: 16px;
+  height: 16px;
+}
+.search-item-release.is-expanded .search-release-chevron {
+  transform: rotate(90deg);
 }
 .release-nested-tracks .search-table-wrap {
   border: none;
@@ -1182,6 +1340,7 @@ label {
   align-items: center;
   gap: 14px;
   padding: 10px 12px;
+  width: 100%;
 }
 
 .artist-top-tracks {
@@ -1283,8 +1442,10 @@ label {
 .search-item-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 4px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .btn-search-download {
