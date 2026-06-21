@@ -1,0 +1,31 @@
+---
+description: BeatportDL-UI stack, paths, and verification
+alwaysApply: true
+---
+
+# BeatportDL-UI Project
+
+Go 1.22 monolith with embedded vanilla `web/` (HTML/CSS/JS via `go:embed`). No frontend build step.
+
+## Paths
+
+- Config: `~/.config/beatportdl-ui/config.yml`
+- OAuth credentials: `~/.config/beatportdl-ui/beatportdl-credentials.json`
+- Default port: **8989** (falls back to 8990 if busy)
+- Beatport API: `https://api.beatport.com/v4`
+
+## Verify changes
+
+```bash
+go build ./...
+```
+
+No `*_test.go` files yet. Do not commit unless the user asks.
+
+## Feature skills
+
+Repeatable workflows live in `.claude/skills/`. For catalog search, read `.claude/skills/beatport-catalog-search/SKILL.md` before changing search backend or UI.
+
+## UI navigation
+
+Top bar (not sidebar): Search | Download | Queue | Fix Tags | Settings. Search is the default view.

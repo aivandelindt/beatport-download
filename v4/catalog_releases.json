@@ -1,0 +1,1970 @@
+## GET
+
+```url
+https://api.beatport/v4/catalog/releases/
+```
+
+SUBMIT
+
+A ViewSet Mixin that adds routes for recommendations given one or many items as a reference. Recommendations only apply to items whose item_type_id is present in `publish_beatbot`.`source_item_type_id`.
+
+## Parameters
+
+artist_id (query)
+
+Filter by exact artist ID match. Supports `OR` lookup: `param=value1,value2`
+artist_name (query)
+
+Filter by case-insensitive artist name containment. Supports `OR` lookup: `param=value1,value2`
+catalog_number (query)
+
+Filter by case-insensitive catalog number exact match. Supports `OR` lookup: `param=value1,value2`
+created (query)
+
+Filter by exact, less/greater than equal and range. Supports slice syntax: `date=1970-01-01` (exact) `date=:1971-01-01` (less than equal) `date=1970-01-01:` (greater than equal) `date=1970-01-01:1971-01-01` (range)
+current_status (query)
+
+Filter on current_status ID exact match. Supports `OR` lookup: `param=value1,value2`
+enabled (query)
+
+Filter by enabled boolean match. * `false` - False * `true` - True
+encoded_date (query)
+
+Filter by exact, less/greater than equal and range. Supports slice syntax: `date=1970-01-01` (exact) `date=:1971-01-01` (less than equal) `date=1970-01-01:` (greater than equal) `date=1970-01-01:1971-01-01` (range)
+exclusive (query)
+
+Filter by exclusive boolean match. * `false` - False * `true` - True
+genre_id (query)
+
+Filter by exact genre ID match. Supports `OR` lookup: `param=value1,value2`
+genre_name (query)
+
+Filter by case-insensitive genre exact match. Supports `OR` lookup: `param=value1,value2`
+id (query)
+
+Filter by exact ID match. Supports `OR` lookup: `param=value1,value2`
+is_available_for_streaming (query)
+
+Filter on streaming available boolean match. * `false` - False * `true` - True
+is_explicit (query)
+
+Filter on is_explicit boolean match. * `false` - False * `true` - True
+is_hype (query)
+
+Filter on is_hype boolean match. * `false` - False * `true` - True
+label_enabled (query)
+
+Filter on enabled boolean match. * `false` - False * `true` - True
+label_id (query)
+
+Filter by exact label ID match. Supports `OR` lookup: `param=value1,value2`
+label_name (query)
+
+Filter by case-insensitive label name containment. Supports `OR` lookup: `param=value1,value2`
+label_name_exact (query)
+
+Filter by case-insensitive label name exact match. Supports `OR` lookup: `param=value1,value2`
+name (query)
+
+Filter by case-insensitive name containment. Supports `OR` lookup: `param=value1,value2`
+new_release_date (query)
+
+Filter by exact, less/greater than equal and range. Supports slice syntax: `date=1970-01-01` (exact) `date=:1971-01-01` (less than equal) `date=1970-01-01:` (greater than equal) `date=1970-01-01:1971-01-01` (range)
+order_by (query)
+
+Order by a field. Choices: publish_date, release_date, label, name, id and status. Use -genre for descending order * `publish_date` - Release Date * `-publish_date` - Release Date (descending) * `label` - Label * `-label` - Label (descending) * `name` - Release Name * `-name` - Release Name (descending) * `id` - Release ID * `-id` - Release ID (descending) * `status` - Release Status * `-status` - Release Status (descending) * `release_date` - Release date * `-release_date` - Release date (descending)
+page (query)
+
+A page number within the paginated result set.
+per_page (query)
+
+Number of results to return per page.
+pre_order_date (query)
+
+Filter by exact, less/greater than equal and range. Supports slice syntax: `date=1970-01-01` (exact) `date=:1971-01-01` (less than equal) `date=1970-01-01:` (greater than equal) `date=1970-01-01:1971-01-01` (range)
+publish_date (query)
+
+Filter by exact, less/greater than equal and range. Supports slice syntax: `date=1970-01-01` (exact) `date=:1971-01-01` (less than equal) `date=1970-01-01:` (greater than equal) `date=1970-01-01:1971-01-01` (range)
+release_type_id (query)
+
+Filter by exact type ID match. Supports `OR` lookup: `param=value1,value2`
+sub_genre_id (query)
+
+Filter by exact sub-genre ID match. Supports `OR` lookup: `param=value1,value2`
+supplier_id (query)
+
+Filter by case-insensitive name containment. Supports `OR` lookup: `param=value1,value2`
+supplier_name (query)
+
+Filter by case-insensitive name containment. Supports `OR` lookup: `param=value1,value2`
+track_id (query)
+
+Filter by exact track ID match. Supports `OR` lookup: `param=value1,value2`
+track_name (query)
+
+Filter by case-insensitive track name containment. Supports `OR` lookup: `param=value1,value2`
+type (query)
+
+Filter on track type. Either Release, Album or Mix Supports `OR` lookup: `param=value1,value2`
+type_id (query)
+
+Filter on release type id Supports `OR` lookup: `param=value1,value2`
+upc (query)
+
+Filter by exact ID match. Supports `OR` lookup: `param=value1,value2`
+updated (query)
+
+Filter by exact, less/greater than equal and range. Supports slice syntax: `date=1970-01-01` (exact) `date=:1971-01-01` (less than equal) `date=1970-01-01:` (greater than equal) `date=1970-01-01:1971-01-01` (range)
+
+
+##  Curl
+
+```sh
+curl -X GET "https://api.beatport.com/v4/catalog/releases/?artist_name=armin" -H "accept: application/json"
+```
+
+## Headers
+```json
+{
+  "allow": "GET, POST, PATCH, HEAD, OPTIONS",
+  "alt-svc": "h3=\":443\"; ma=2592000",
+  "content-encoding": "gzip",
+  "content-security-policy": "frame-ancestors 'self' btprt.dj snip.ly",
+  "content-type": "application/json",
+  "cross-origin-opener-policy": "unsafe-none",
+  "date": "Sun, 21 Jun 2026 08:54:56 GMT",
+  "referrer-policy": "same-origin",
+  "server": "istio-envoy",
+  "strict-transport-security": "max-age=31536000;includeSubDomains",
+  "vary": "origin, Authorization",
+  "via": "1.1 google",
+  "x-content-type-options": "nosniff",
+  "x-envoy-upstream-service-time": "2441",
+  "x-frame-options": "deny",
+  "x-is-canary": "false"
+}
+```
+
+## Response: 200 ()
+
+```json
+{
+  "results": [
+    {
+      "artists": [
+        {
+          "id": 2373110,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Armin Shaw",
+          "slug": "armin-shaw",
+          "url": "https://api.beatport.com/v4/catalog/artists/2373110/"
+        }
+      ],
+      "bpm_range": {
+        "min": 136,
+        "max": 136
+      },
+      "catalog_number": "882458395194",
+      "desc": null,
+      "enabled": true,
+      "encoded_date": "2026-06-20T10:36:25-06:00",
+      "exclusive": false,
+      "id": 7103481,
+      "image": {
+        "id": 56222929,
+        "uri": "https://geo-media.beatport.com/image_size/1400x1400/6f600a1f-5238-4ccd-a4ef-5349f50bfe16.jpg",
+        "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/6f600a1f-5238-4ccd-a4ef-5349f50bfe16.jpg"
+      },
+      "is_explicit": false,
+      "is_ugc_remix": false,
+      "is_dj_edit": false,
+      "label": {
+        "id": 66449,
+        "name": "DistroKid",
+        "image": {
+          "id": 37419647,
+          "uri": "https://geo-media.beatport.com/image_size/500x500/20730136-73e9-4d98-ab83-bf0f82efa567.jpg",
+          "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/20730136-73e9-4d98-ab83-bf0f82efa567.jpg"
+        },
+        "slug": "distrokid"
+      },
+      "name": "I'm Yours Now",
+      "new_release_date": "2026-06-20",
+      "override_price": null,
+      "pre_order": false,
+      "pre_order_date": null,
+      "price": {
+        "code": "EUR",
+        "symbol": "€",
+        "value": 1.59,
+        "display": "€1.59"
+      },
+      "price_override_firm": false,
+      "publish_date": "2026-06-20",
+      "remixers": [],
+      "slug": "im-yours-now",
+      "track_count": 1,
+      "upc": "882458395194",
+      "updated": "2026-06-20T04:38:18-06:00",
+      "url": "https://api.beatport.com/v4/catalog/releases/7103481/",
+      "is_hype": false
+    },
+    {
+      "artists": [
+        {
+          "id": 417098,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Kizo",
+          "slug": "kizo",
+          "url": "https://api.beatport.com/v4/catalog/artists/417098/"
+        },
+        {
+          "id": 1232927,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "ClearMind",
+          "slug": "clearmind",
+          "url": "https://api.beatport.com/v4/catalog/artists/1232927/"
+        }
+      ],
+      "bpm_range": {
+        "min": 122,
+        "max": 122
+      },
+      "catalog_number": "00602478536632",
+      "desc": null,
+      "enabled": true,
+      "encoded_date": "2026-06-19T14:03:42-06:00",
+      "exclusive": false,
+      "id": 7098392,
+      "image": {
+        "id": 56198751,
+        "uri": "https://geo-media.beatport.com/image_size/1400x1400/f2a64025-aba0-423f-9204-e59cbd5fab58.jpg",
+        "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/f2a64025-aba0-423f-9204-e59cbd5fab58.jpg"
+      },
+      "is_explicit": true,
+      "is_ugc_remix": false,
+      "is_dj_edit": false,
+      "label": {
+        "id": 142419,
+        "name": "spacerange",
+        "image": {
+          "id": 5539566,
+          "uri": "https://geo-media.beatport.com/image_size/500x500/cda9862c-cf92-4d13-ac65-7e9277181f51.jpg",
+          "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/cda9862c-cf92-4d13-ac65-7e9277181f51.jpg"
+        },
+        "slug": "spacerange"
+      },
+      "name": "BEZ KITU",
+      "new_release_date": "2025-06-11",
+      "override_price": null,
+      "pre_order": false,
+      "pre_order_date": null,
+      "price": {
+        "code": "EUR",
+        "symbol": "€",
+        "value": 1.39,
+        "display": "€1.39"
+      },
+      "price_override_firm": false,
+      "publish_date": "2025-06-11",
+      "remixers": [],
+      "slug": "bez-kitu",
+      "track_count": 1,
+      "upc": "00602478536632",
+      "updated": "2026-06-19T08:14:05-06:00",
+      "url": "https://api.beatport.com/v4/catalog/releases/7098392/",
+      "is_hype": false
+    },
+    {
+      "artists": [
+        {
+          "id": 2215503,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "CODE93",
+          "slug": "code93",
+          "url": "https://api.beatport.com/v4/catalog/artists/2215503/"
+        },
+        {
+          "id": 267023,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Roman Naboka",
+          "slug": "roman-naboka",
+          "url": "https://api.beatport.com/v4/catalog/artists/267023/"
+        },
+        {
+          "id": 246355,
+          "image": {
+            "id": 8745901,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/8523c6c3-9c0f-4874-9b34-ba388c9180c3.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/8523c6c3-9c0f-4874-9b34-ba388c9180c3.jpg"
+          },
+          "name": "Dreaman",
+          "slug": "dreaman",
+          "url": "https://api.beatport.com/v4/catalog/artists/246355/"
+        },
+        {
+          "id": 1087791,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Armino Gettachi",
+          "slug": "armino-gettachi",
+          "url": "https://api.beatport.com/v4/catalog/artists/1087791/"
+        },
+        {
+          "id": 666702,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Aleksey Litunov",
+          "slug": "aleksey-litunov",
+          "url": "https://api.beatport.com/v4/catalog/artists/666702/"
+        },
+        {
+          "id": 439530,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Margo Fly",
+          "slug": "margo-fly",
+          "url": "https://api.beatport.com/v4/catalog/artists/439530/"
+        },
+        {
+          "id": 419103,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Cj Stereogun",
+          "slug": "cj-stereogun",
+          "url": "https://api.beatport.com/v4/catalog/artists/419103/"
+        },
+        {
+          "id": 433747,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "DJ 5L45H",
+          "slug": "dj-5l45h",
+          "url": "https://api.beatport.com/v4/catalog/artists/433747/"
+        },
+        {
+          "id": 522659,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Andrew Modens",
+          "slug": "andrew-modens",
+          "url": "https://api.beatport.com/v4/catalog/artists/522659/"
+        }
+      ],
+      "bpm_range": {
+        "min": 69,
+        "max": 160
+      },
+      "catalog_number": "AS752",
+      "desc": "Summer Ibiza Chill 2026",
+      "enabled": true,
+      "encoded_date": "2026-06-19T13:03:30-06:00",
+      "exclusive": false,
+      "id": 7098158,
+      "image": {
+        "id": 56197142,
+        "uri": "https://geo-media.beatport.com/image_size/1400x1400/d4714d68-a1f9-41a6-9d80-0f9649aaaf94.jpg",
+        "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/d4714d68-a1f9-41a6-9d80-0f9649aaaf94.jpg"
+      },
+      "is_explicit": false,
+      "is_ugc_remix": false,
+      "is_dj_edit": false,
+      "label": {
+        "id": 51198,
+        "name": "Atomrise Sounds",
+        "image": {
+          "id": 12098870,
+          "uri": "https://geo-media.beatport.com/image_size/500x500/c251a184-0dbd-4af6-aae3-843dbcab3497.jpg",
+          "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/c251a184-0dbd-4af6-aae3-843dbcab3497.jpg"
+        },
+        "slug": "atomrise-sounds"
+      },
+      "name": "Summer Ibiza Chill 2026",
+      "new_release_date": "2026-06-29",
+      "override_price": null,
+      "pre_order": true,
+      "pre_order_date": "2026-06-01",
+      "price": {
+        "code": "EUR",
+        "symbol": "€",
+        "value": 7.99,
+        "display": "€7.99"
+      },
+      "price_override_firm": false,
+      "publish_date": "2026-06-29",
+      "remixers": [],
+      "slug": "summer-ibiza-chill-2026",
+      "track_count": 10,
+      "upc": "5054290034592",
+      "updated": "2026-06-20T00:32:59-06:00",
+      "url": "https://api.beatport.com/v4/catalog/releases/7098158/",
+      "is_hype": false
+    },
+    {
+      "artists": [
+        {
+          "id": 417098,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Kizo",
+          "slug": "kizo",
+          "url": "https://api.beatport.com/v4/catalog/artists/417098/"
+        },
+        {
+          "id": 1232927,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "ClearMind",
+          "slug": "clearmind",
+          "url": "https://api.beatport.com/v4/catalog/artists/1232927/"
+        }
+      ],
+      "bpm_range": {
+        "min": 150,
+        "max": 150
+      },
+      "catalog_number": "00602478327599",
+      "desc": null,
+      "enabled": true,
+      "encoded_date": "2026-06-17T15:13:25-06:00",
+      "exclusive": false,
+      "id": 7086311,
+      "image": {
+        "id": 56131555,
+        "uri": "https://geo-media.beatport.com/image_size/1400x1400/8f35f64b-7ff3-49a0-b92d-2425ab000290.jpg",
+        "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/8f35f64b-7ff3-49a0-b92d-2425ab000290.jpg"
+      },
+      "is_explicit": true,
+      "is_ugc_remix": false,
+      "is_dj_edit": false,
+      "label": {
+        "id": 142419,
+        "name": "spacerange",
+        "image": {
+          "id": 5539566,
+          "uri": "https://geo-media.beatport.com/image_size/500x500/cda9862c-cf92-4d13-ac65-7e9277181f51.jpg",
+          "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/cda9862c-cf92-4d13-ac65-7e9277181f51.jpg"
+        },
+        "slug": "spacerange"
+      },
+      "name": "SZEF",
+      "new_release_date": "2025-05-05",
+      "override_price": null,
+      "pre_order": false,
+      "pre_order_date": null,
+      "price": {
+        "code": "EUR",
+        "symbol": "€",
+        "value": 1.39,
+        "display": "€1.39"
+      },
+      "price_override_firm": false,
+      "publish_date": "2025-05-05",
+      "remixers": [],
+      "slug": "szef",
+      "track_count": 1,
+      "upc": "00602478327599",
+      "updated": "2026-06-17T09:19:03-06:00",
+      "url": "https://api.beatport.com/v4/catalog/releases/7086311/",
+      "is_hype": false
+    },
+    {
+      "artists": [
+        {
+          "id": 2228,
+          "image": {
+            "id": 45082940,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/202f8f3b-7da8-4cc4-8f62-59b682edb943.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/202f8f3b-7da8-4cc4-8f62-59b682edb943.jpg"
+          },
+          "name": "Armin van Buuren",
+          "slug": "armin-van-buuren",
+          "url": "https://api.beatport.com/v4/catalog/artists/2228/"
+        },
+        {
+          "id": 6824,
+          "image": {
+            "id": 33293983,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/088dd4b5-964d-4772-93bf-58408d98b588.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/088dd4b5-964d-4772-93bf-58408d98b588.jpg"
+          },
+          "name": "Adam Beyer",
+          "slug": "adam-beyer",
+          "url": "https://api.beatport.com/v4/catalog/artists/6824/"
+        }
+      ],
+      "bpm_range": {
+        "min": 135,
+        "max": 135
+      },
+      "catalog_number": "ARMAS3766",
+      "desc": null,
+      "enabled": true,
+      "encoded_date": "2026-06-17T14:47:27-06:00",
+      "exclusive": true,
+      "id": 7086194,
+      "image": {
+        "id": 56131120,
+        "uri": "https://geo-media.beatport.com/image_size/1400x1400/1fcb7780-e4fb-4488-a84e-2cef11ff7343.jpg",
+        "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/1fcb7780-e4fb-4488-a84e-2cef11ff7343.jpg"
+      },
+      "is_explicit": false,
+      "is_ugc_remix": false,
+      "is_dj_edit": false,
+      "label": {
+        "id": 2027,
+        "name": "Drumcode",
+        "image": {
+          "id": 33119007,
+          "uri": "https://geo-media.beatport.com/image_size/500x500/0d86a4f2-f87e-44fd-baa4-833150584f17.jpg",
+          "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0d86a4f2-f87e-44fd-baa4-833150584f17.jpg"
+        },
+        "slug": "drumcode"
+      },
+      "name": "No Mercy",
+      "new_release_date": "2026-06-26",
+      "override_price": null,
+      "pre_order": true,
+      "pre_order_date": "2026-06-18",
+      "price": {
+        "code": "EUR",
+        "symbol": "€",
+        "value": 2.39,
+        "display": "€2.39"
+      },
+      "price_override_firm": false,
+      "publish_date": "2026-06-26",
+      "remixers": [],
+      "slug": "no-mercy",
+      "track_count": 1,
+      "upc": "8718522600197",
+      "updated": "2026-06-18T00:33:29-06:00",
+      "url": "https://api.beatport.com/v4/catalog/releases/7086194/",
+      "is_hype": false
+    },
+    {
+      "artists": [
+        {
+          "id": 1292,
+          "image": {
+            "id": 25538535,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/7c42b1ed-8f2b-4b37-82d0-9688f87bdbc7.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/7c42b1ed-8f2b-4b37-82d0-9688f87bdbc7.jpg"
+          },
+          "name": "Solarstone",
+          "slug": "solarstone",
+          "url": "https://api.beatport.com/v4/catalog/artists/1292/"
+        },
+        {
+          "id": 23916,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Jurgen Vries",
+          "slug": "jurgen-vries",
+          "url": "https://api.beatport.com/v4/catalog/artists/23916/"
+        },
+        {
+          "id": 11924,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Solid Sessions",
+          "slug": "solid-sessions",
+          "url": "https://api.beatport.com/v4/catalog/artists/11924/"
+        },
+        {
+          "id": 3756,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Rapid Eye",
+          "slug": "rapid-eye",
+          "url": "https://api.beatport.com/v4/catalog/artists/3756/"
+        },
+        {
+          "id": 2228,
+          "image": {
+            "id": 45082940,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/202f8f3b-7da8-4cc4-8f62-59b682edb943.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/202f8f3b-7da8-4cc4-8f62-59b682edb943.jpg"
+          },
+          "name": "Armin van Buuren",
+          "slug": "armin-van-buuren",
+          "url": "https://api.beatport.com/v4/catalog/artists/2228/"
+        },
+        {
+          "id": 7054,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Rising Star",
+          "slug": "rising-star",
+          "url": "https://api.beatport.com/v4/catalog/artists/7054/"
+        },
+        {
+          "id": 20145,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "State of Grace",
+          "slug": "state-of-grace",
+          "url": "https://api.beatport.com/v4/catalog/artists/20145/"
+        },
+        {
+          "id": 21212,
+          "image": {
+            "id": 13812159,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/a8e3d855-6699-43a9-a3a0-8fa807c1762f.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/a8e3d855-6699-43a9-a3a0-8fa807c1762f.jpg"
+          },
+          "name": "Shane",
+          "slug": "shane",
+          "url": "https://api.beatport.com/v4/catalog/artists/21212/"
+        },
+        {
+          "id": 1646,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Accessive Rhythm",
+          "slug": "accessive-rhythm",
+          "url": "https://api.beatport.com/v4/catalog/artists/1646/"
+        },
+        {
+          "id": 20249,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Marco Botelli",
+          "slug": "marco-botelli",
+          "url": "https://api.beatport.com/v4/catalog/artists/20249/"
+        },
+        {
+          "id": 59757,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Riva",
+          "slug": "riva",
+          "url": "https://api.beatport.com/v4/catalog/artists/59757/"
+        },
+        {
+          "id": 86817,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Mantrax",
+          "slug": "mantrax",
+          "url": "https://api.beatport.com/v4/catalog/artists/86817/"
+        },
+        {
+          "id": 188707,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Jaimy & Kenny D.",
+          "slug": "jaimy-kenny-d",
+          "url": "https://api.beatport.com/v4/catalog/artists/188707/"
+        },
+        {
+          "id": 28368,
+          "image": {
+            "id": 54514961,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/5fc11be0-5998-4f26-8942-fa3499f74df2.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/5fc11be0-5998-4f26-8942-fa3499f74df2.jpg"
+          },
+          "name": "TON TB",
+          "slug": "ton-tb",
+          "url": "https://api.beatport.com/v4/catalog/artists/28368/"
+        },
+        {
+          "id": 226655,
+          "image": {
+            "id": 5476108,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/796b11c6-fc45-4853-a0d0-38d03cdbb6d8.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/796b11c6-fc45-4853-a0d0-38d03cdbb6d8.jpg"
+          },
+          "name": "Ernesto vs Bastian",
+          "slug": "ernesto-vs-bastian",
+          "url": "https://api.beatport.com/v4/catalog/artists/226655/"
+        },
+        {
+          "id": 50106,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "South East Players",
+          "slug": "south-east-players",
+          "url": "https://api.beatport.com/v4/catalog/artists/50106/"
+        },
+        {
+          "id": 28614,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Vehemence",
+          "slug": "vehemence",
+          "url": "https://api.beatport.com/v4/catalog/artists/28614/"
+        },
+        {
+          "id": 8783,
+          "image": {
+            "id": 16344135,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/cfbb4413-979a-4dc5-8890-30fd5eac9f2c.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/cfbb4413-979a-4dc5-8890-30fd5eac9f2c.jpg"
+          },
+          "name": "Three Drives",
+          "slug": "three-drives",
+          "url": "https://api.beatport.com/v4/catalog/artists/8783/"
+        },
+        {
+          "id": 196247,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "A.J.A. Productions",
+          "slug": "aja-productions",
+          "url": "https://api.beatport.com/v4/catalog/artists/196247/"
+        },
+        {
+          "id": 4380,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Scott Mac",
+          "slug": "scott-mac",
+          "url": "https://api.beatport.com/v4/catalog/artists/4380/"
+        },
+        {
+          "id": 7608,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Drax",
+          "slug": "drax",
+          "url": "https://api.beatport.com/v4/catalog/artists/7608/"
+        }
+      ],
+      "bpm_range": {
+        "min": 69,
+        "max": 140
+      },
+      "catalog_number": "ARDI4688",
+      "desc": null,
+      "enabled": true,
+      "encoded_date": "2026-06-16T16:10:45-06:00",
+      "exclusive": false,
+      "id": 7079351,
+      "image": {
+        "id": 56091314,
+        "uri": "https://geo-media.beatport.com/image_size/1400x1400/b6056b46-82be-4246-9210-a86fcc58aa0e.jpg",
+        "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/b6056b46-82be-4246-9210-a86fcc58aa0e.jpg"
+      },
+      "is_explicit": false,
+      "is_ugc_remix": false,
+      "is_dj_edit": false,
+      "label": {
+        "id": 12,
+        "name": "A State of Trance",
+        "image": {
+          "id": 27442562,
+          "uri": "https://geo-media.beatport.com/image_size/500x500/91b930ee-1bb0-460a-986f-284cc16550c4.jpg",
+          "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/91b930ee-1bb0-460a-986f-284cc16550c4.jpg"
+        },
+        "slug": "a-state-of-trance"
+      },
+      "name": "A State of Trance 25 Years - 2002 Highlights",
+      "new_release_date": "2026-06-19",
+      "override_price": null,
+      "pre_order": false,
+      "pre_order_date": null,
+      "price": {
+        "code": "EUR",
+        "symbol": "€",
+        "value": 14.99,
+        "display": "€14.99"
+      },
+      "price_override_firm": false,
+      "publish_date": "2026-06-19",
+      "remixers": [
+        {
+          "id": 1728,
+          "image": {
+            "id": 24256182,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/722b4634-01ec-4544-a4a4-5db353f8e01e.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/722b4634-01ec-4544-a4a4-5db353f8e01e.jpg"
+          },
+          "name": "Markus Schulz",
+          "slug": "markus-schulz",
+          "url": "https://api.beatport.com/v4/catalog/artists/1728/"
+        },
+        {
+          "id": 2228,
+          "image": {
+            "id": 45082940,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/202f8f3b-7da8-4cc4-8f62-59b682edb943.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/202f8f3b-7da8-4cc4-8f62-59b682edb943.jpg"
+          },
+          "name": "Armin van Buuren",
+          "slug": "armin-van-buuren",
+          "url": "https://api.beatport.com/v4/catalog/artists/2228/"
+        },
+        {
+          "id": 17634,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "CJ Stone",
+          "slug": "cj-stone",
+          "url": "https://api.beatport.com/v4/catalog/artists/17634/"
+        },
+        {
+          "id": 185863,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "B.O.B. Ltd.",
+          "slug": "bob-ltd",
+          "url": "https://api.beatport.com/v4/catalog/artists/185863/"
+        },
+        {
+          "id": 62036,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Greg Folter",
+          "slug": "greg-folter",
+          "url": "https://api.beatport.com/v4/catalog/artists/62036/"
+        }
+      ],
+      "slug": "a-state-of-trance-25-years-2002-highlights",
+      "track_count": 20,
+      "upc": "8718522599675",
+      "updated": "2026-06-19T00:33:19-06:00",
+      "url": "https://api.beatport.com/v4/catalog/releases/7079351/",
+      "is_hype": false
+    },
+    {
+      "artists": [
+        {
+          "id": 550974,
+          "image": {
+            "id": 34514653,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/eae941d4-d2cf-4e23-befb-2653f497ba7a.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/eae941d4-d2cf-4e23-befb-2653f497ba7a.jpg"
+          },
+          "name": "Jago Alejandro Pascua",
+          "slug": "jago-alejandro-pascua",
+          "url": "https://api.beatport.com/v4/catalog/artists/550974/"
+        },
+        {
+          "id": 559939,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Maximo Gladius",
+          "slug": "maximo-gladius",
+          "url": "https://api.beatport.com/v4/catalog/artists/559939/"
+        },
+        {
+          "id": 593815,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Mikhail Ovez",
+          "slug": "mikhail-ovez",
+          "url": "https://api.beatport.com/v4/catalog/artists/593815/"
+        },
+        {
+          "id": 551961,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Carmine Rafael Faro",
+          "slug": "carmine-rafael-faro",
+          "url": "https://api.beatport.com/v4/catalog/artists/551961/"
+        },
+        {
+          "id": 437321,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "David James Bianchi",
+          "slug": "david-james-bianchi",
+          "url": "https://api.beatport.com/v4/catalog/artists/437321/"
+        },
+        {
+          "id": 591955,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Alidiana Silverkin",
+          "slug": "alidiana-silverkin",
+          "url": "https://api.beatport.com/v4/catalog/artists/591955/"
+        },
+        {
+          "id": 437323,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Nino Garcia",
+          "slug": "nino-garcia",
+          "url": "https://api.beatport.com/v4/catalog/artists/437323/"
+        },
+        {
+          "id": 609696,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Shisdess",
+          "slug": "shisdess",
+          "url": "https://api.beatport.com/v4/catalog/artists/609696/"
+        },
+        {
+          "id": 522639,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Robert Kanford",
+          "slug": "robert-kanford",
+          "url": "https://api.beatport.com/v4/catalog/artists/522639/"
+        },
+        {
+          "id": 437327,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Vincent Routing",
+          "slug": "vincent-routing",
+          "url": "https://api.beatport.com/v4/catalog/artists/437327/"
+        },
+        {
+          "id": 609307,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Igor Pantereech",
+          "slug": "igor-pantereech",
+          "url": "https://api.beatport.com/v4/catalog/artists/609307/"
+        }
+      ],
+      "bpm_range": {
+        "min": 74,
+        "max": 115
+      },
+      "catalog_number": "BGR182",
+      "desc": "Executive producer: Alex Raider. \nhttps://alexraider.com \nhttps://kaleydorecords.com \nlicensing@kaleydorecords.com",
+      "enabled": true,
+      "encoded_date": "2026-06-16T13:29:09-06:00",
+      "exclusive": false,
+      "id": 7078877,
+      "image": {
+        "id": 56086952,
+        "uri": "https://geo-media.beatport.com/image_size/1400x1400/52a30578-6da0-4261-9652-57198321a00a.jpg",
+        "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/52a30578-6da0-4261-9652-57198321a00a.jpg"
+      },
+      "is_explicit": false,
+      "is_ugc_remix": false,
+      "is_dj_edit": false,
+      "label": {
+        "id": 34952,
+        "name": "Be Groove Records",
+        "image": {
+          "id": 14591647,
+          "uri": "https://geo-media.beatport.com/image_size/500x500/c66cc2dc-404c-44dd-b752-5cd6a4d71c1e.jpg",
+          "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/c66cc2dc-404c-44dd-b752-5cd6a4d71c1e.jpg"
+        },
+        "slug": "be-groove-records"
+      },
+      "name": "Serene Escape, Volume 2",
+      "new_release_date": "2026-07-17",
+      "override_price": null,
+      "pre_order": true,
+      "pre_order_date": "2026-06-19",
+      "price": {
+        "code": "EUR",
+        "symbol": "€",
+        "value": 14.99,
+        "display": "€14.99"
+      },
+      "price_override_firm": false,
+      "publish_date": "2026-07-17",
+      "remixers": [
+        {
+          "id": 37054,
+          "image": {
+            "id": 31984396,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/dc2f8b6c-8bec-4bbc-a0c7-b7bc7ab2a2b3.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/dc2f8b6c-8bec-4bbc-a0c7-b7bc7ab2a2b3.jpg"
+          },
+          "name": "Alex Raider",
+          "slug": "alex-raider",
+          "url": "https://api.beatport.com/v4/catalog/artists/37054/"
+        }
+      ],
+      "slug": "serene-escape-volume-2",
+      "track_count": 16,
+      "upc": "5054290007121",
+      "updated": "2026-06-19T00:33:19-06:00",
+      "url": "https://api.beatport.com/v4/catalog/releases/7078877/",
+      "is_hype": false
+    },
+    {
+      "artists": [
+        {
+          "id": 1292,
+          "image": {
+            "id": 25538535,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/7c42b1ed-8f2b-4b37-82d0-9688f87bdbc7.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/7c42b1ed-8f2b-4b37-82d0-9688f87bdbc7.jpg"
+          },
+          "name": "Solarstone",
+          "slug": "solarstone",
+          "url": "https://api.beatport.com/v4/catalog/artists/1292/"
+        },
+        {
+          "id": 2228,
+          "image": {
+            "id": 45082940,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/202f8f3b-7da8-4cc4-8f62-59b682edb943.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/202f8f3b-7da8-4cc4-8f62-59b682edb943.jpg"
+          },
+          "name": "Armin van Buuren",
+          "slug": "armin-van-buuren",
+          "url": "https://api.beatport.com/v4/catalog/artists/2228/"
+        },
+        {
+          "id": 41964,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Gaia",
+          "slug": "gaia",
+          "url": "https://api.beatport.com/v4/catalog/artists/41964/"
+        },
+        {
+          "id": 140691,
+          "image": {
+            "id": 7738370,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0bb4789e-a839-4a5e-b939-b1f0bcb530d7.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0bb4789e-a839-4a5e-b939-b1f0bcb530d7.jpg"
+          },
+          "name": "Ana Criado",
+          "slug": "ana-criado",
+          "url": "https://api.beatport.com/v4/catalog/artists/140691/"
+        },
+        {
+          "id": 624638,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Josh Cumbee",
+          "slug": "josh-cumbee",
+          "url": "https://api.beatport.com/v4/catalog/artists/624638/"
+        },
+        {
+          "id": 67400,
+          "image": {
+            "id": 31071268,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/dda59b64-53c6-4ea9-a1c0-e8881711c35f.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/dda59b64-53c6-4ea9-a1c0-e8881711c35f.jpg"
+          },
+          "name": "MaRLo",
+          "slug": "marlo",
+          "url": "https://api.beatport.com/v4/catalog/artists/67400/"
+        },
+        {
+          "id": 89216,
+          "image": {
+            "id": 21111365,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/4c694842-4640-4415-88b6-5960d6cfbebc.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/4c694842-4640-4415-88b6-5960d6cfbebc.jpg"
+          },
+          "name": "Feenixpawl",
+          "slug": "feenixpawl",
+          "url": "https://api.beatport.com/v4/catalog/artists/89216/"
+        },
+        {
+          "id": 852699,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Mila Josef",
+          "slug": "mila-josef",
+          "url": "https://api.beatport.com/v4/catalog/artists/852699/"
+        },
+        {
+          "id": 31283,
+          "image": {
+            "id": 46996951,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/27623010-b18b-4205-aa60-311694f2e204.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/27623010-b18b-4205-aa60-311694f2e204.jpg"
+          },
+          "name": "Ben Gold",
+          "slug": "ben-gold",
+          "url": "https://api.beatport.com/v4/catalog/artists/31283/"
+        },
+        {
+          "id": 3458,
+          "image": {
+            "id": 13917502,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/72b54337-a2ce-4b50-82cf-0c8125c6e2ce.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/72b54337-a2ce-4b50-82cf-0c8125c6e2ce.jpg"
+          },
+          "name": "Aly & Fila",
+          "slug": "aly-fila",
+          "url": "https://api.beatport.com/v4/catalog/artists/3458/"
+        },
+        {
+          "id": 2397608,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Roger Shah & Susana",
+          "slug": "roger-shah-susana",
+          "url": "https://api.beatport.com/v4/catalog/artists/2397608/"
+        },
+        {
+          "id": 3396,
+          "image": {
+            "id": 34959145,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/43f3ae00-6ad1-4eac-9780-115e065eddcd.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/43f3ae00-6ad1-4eac-9780-115e065eddcd.jpg"
+          },
+          "name": "Alex M.O.R.P.H.",
+          "slug": "alex-morph",
+          "url": "https://api.beatport.com/v4/catalog/artists/3396/"
+        },
+        {
+          "id": 8672,
+          "image": {
+            "id": 9955170,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/f78f5844-f172-4cf7-84f7-39c983aa1c64.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/f78f5844-f172-4cf7-84f7-39c983aa1c64.jpg"
+          },
+          "name": "Sylvia Tosun",
+          "slug": "sylvia-tosun",
+          "url": "https://api.beatport.com/v4/catalog/artists/8672/"
+        },
+        {
+          "id": 471124,
+          "image": {
+            "id": 44642691,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/659c6ab8-92b2-4e23-885d-658f9d64e613.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/659c6ab8-92b2-4e23-885d-658f9d64e613.jpg"
+          },
+          "name": "Gryffin",
+          "slug": "gryffin",
+          "url": "https://api.beatport.com/v4/catalog/artists/471124/"
+        },
+        {
+          "id": 7181,
+          "image": {
+            "id": 18656514,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/b7d6ad3c-7b8f-40cc-a20a-d0c407963d59.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/b7d6ad3c-7b8f-40cc-a20a-d0c407963d59.jpg"
+          },
+          "name": "Above & Beyond",
+          "slug": "above-beyond",
+          "url": "https://api.beatport.com/v4/catalog/artists/7181/"
+        },
+        {
+          "id": 196318,
+          "image": {
+            "id": 12265412,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/2618625d-568b-4624-8d45-901ee54fc013.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/2618625d-568b-4624-8d45-901ee54fc013.jpg"
+          },
+          "name": "Zoe Johnston",
+          "slug": "zoe-johnston",
+          "url": "https://api.beatport.com/v4/catalog/artists/196318/"
+        },
+        {
+          "id": 330134,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Miri Ben-Ari",
+          "slug": "miri-ben-ari",
+          "url": "https://api.beatport.com/v4/catalog/artists/330134/"
+        },
+        {
+          "id": 7054,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Rising Star",
+          "slug": "rising-star",
+          "url": "https://api.beatport.com/v4/catalog/artists/7054/"
+        },
+        {
+          "id": 159667,
+          "image": {
+            "id": 13157886,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/1acb21c1-0581-4ffe-b768-bb49db3e04be.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/1acb21c1-0581-4ffe-b768-bb49db3e04be.jpg"
+          },
+          "name": "Betsie Larkin",
+          "slug": "betsie-larkin",
+          "url": "https://api.beatport.com/v4/catalog/artists/159667/"
+        },
+        {
+          "id": 71541,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Sacha",
+          "slug": "sacha",
+          "url": "https://api.beatport.com/v4/catalog/artists/71541/"
+        },
+        {
+          "id": 10451,
+          "image": {
+            "id": 7738368,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/bbddcc46-cd75-4567-a200-afb2b85679db.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/bbddcc46-cd75-4567-a200-afb2b85679db.jpg"
+          },
+          "name": "Susana",
+          "slug": "susana",
+          "url": "https://api.beatport.com/v4/catalog/artists/10451/"
+        },
+        {
+          "id": 36840,
+          "image": {
+            "id": 12174528,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/1f4c5211-a479-4c00-a6c0-82f7bc655cdf.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/1f4c5211-a479-4c00-a6c0-82f7bc655cdf.jpg"
+          },
+          "name": "RAM",
+          "slug": "ram",
+          "url": "https://api.beatport.com/v4/catalog/artists/36840/"
+        },
+        {
+          "id": 6778,
+          "image": {
+            "id": 37180401,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/cc3a35ac-db09-430e-b3a1-ae4dc3e34be8.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/cc3a35ac-db09-430e-b3a1-ae4dc3e34be8.jpg"
+          },
+          "name": "John O'Callaghan",
+          "slug": "john-ocallaghan",
+          "url": "https://api.beatport.com/v4/catalog/artists/6778/"
+        },
+        {
+          "id": 104446,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Audrey Gallagher",
+          "slug": "audrey-gallagher",
+          "url": "https://api.beatport.com/v4/catalog/artists/104446/"
+        },
+        {
+          "id": 24175,
+          "image": {
+            "id": 12274216,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/e20384e7-3c1e-4325-960d-a6cbebfcdaf0.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/e20384e7-3c1e-4325-960d-a6cbebfcdaf0.jpg"
+          },
+          "name": "Sunlounger",
+          "slug": "sunlounger",
+          "url": "https://api.beatport.com/v4/catalog/artists/24175/"
+        },
+        {
+          "id": 200018,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Zara Taylor",
+          "slug": "zara-taylor",
+          "url": "https://api.beatport.com/v4/catalog/artists/200018/"
+        },
+        {
+          "id": 1007936,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Kazi Jay",
+          "slug": "kazi-jay",
+          "url": "https://api.beatport.com/v4/catalog/artists/1007936/"
+        },
+        {
+          "id": 179192,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Fiora",
+          "slug": "fiora",
+          "url": "https://api.beatport.com/v4/catalog/artists/179192/"
+        },
+        {
+          "id": 26035,
+          "image": {
+            "id": 4681255,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/427160fe-a2e5-43b1-8e2e-8703581fad88.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/427160fe-a2e5-43b1-8e2e-8703581fad88.jpg"
+          },
+          "name": "Justine Suissa",
+          "slug": "justine-suissa",
+          "url": "https://api.beatport.com/v4/catalog/artists/26035/"
+        }
+      ],
+      "bpm_range": {
+        "min": 85,
+        "max": 140
+      },
+      "catalog_number": "ARDI4684D",
+      "desc": null,
+      "enabled": true,
+      "encoded_date": "2026-06-12T17:30:22-06:00",
+      "exclusive": false,
+      "id": 7059903,
+      "image": {
+        "id": 56005478,
+        "uri": "https://geo-media.beatport.com/image_size/1400x1400/7816d631-15cb-4e5e-ae23-94c478cf9f18.jpg",
+        "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/7816d631-15cb-4e5e-ae23-94c478cf9f18.jpg"
+      },
+      "is_explicit": false,
+      "is_ugc_remix": false,
+      "is_dj_edit": false,
+      "label": {
+        "id": 12,
+        "name": "A State of Trance",
+        "image": {
+          "id": 27442562,
+          "uri": "https://geo-media.beatport.com/image_size/500x500/91b930ee-1bb0-460a-986f-284cc16550c4.jpg",
+          "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/91b930ee-1bb0-460a-986f-284cc16550c4.jpg"
+        },
+        "slug": "a-state-of-trance"
+      },
+      "name": "A State of Trance 25 Years: Selected Highlights",
+      "new_release_date": "2026-06-05",
+      "override_price": null,
+      "pre_order": false,
+      "pre_order_date": null,
+      "price": {
+        "code": "EUR",
+        "symbol": "€",
+        "value": 14.99,
+        "display": "€14.99"
+      },
+      "price_override_firm": false,
+      "publish_date": "2026-06-05",
+      "remixers": [
+        {
+          "id": 26567,
+          "image": {
+            "id": 27155151,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/c0ae1cd4-b345-434c-a131-5052d92948c4.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/c0ae1cd4-b345-434c-a131-5052d92948c4.jpg"
+          },
+          "name": "ReOrder",
+          "slug": "reorder",
+          "url": "https://api.beatport.com/v4/catalog/artists/26567/"
+        },
+        {
+          "id": 986544,
+          "image": {
+            "id": 31364280,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/16593751-8907-433d-aaed-27e8dd9ad52f.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/16593751-8907-433d-aaed-27e8dd9ad52f.jpg"
+          },
+          "name": "Crowd+Ctrl",
+          "slug": "crowdctrl",
+          "url": "https://api.beatport.com/v4/catalog/artists/986544/"
+        },
+        {
+          "id": 30348,
+          "image": {
+            "id": 22863926,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/93ca9cad-6018-48c9-9c64-9f666feda7e2.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/93ca9cad-6018-48c9-9c64-9f666feda7e2.jpg"
+          },
+          "name": "Andrea Ribeca",
+          "slug": "andrea-ribeca",
+          "url": "https://api.beatport.com/v4/catalog/artists/30348/"
+        },
+        {
+          "id": 1777,
+          "image": {
+            "id": 24034904,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/7f8be54a-ac36-4467-9f2e-9424b1e0a9bc.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/7f8be54a-ac36-4467-9f2e-9424b1e0a9bc.jpg"
+          },
+          "name": "Gabriel & Dresden",
+          "slug": "gabriel-dresden",
+          "url": "https://api.beatport.com/v4/catalog/artists/1777/"
+        },
+        {
+          "id": 7054,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Rising Star",
+          "slug": "rising-star",
+          "url": "https://api.beatport.com/v4/catalog/artists/7054/"
+        },
+        {
+          "id": 17632,
+          "image": {
+            "id": 26624562,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/e58beafe-0672-4e75-9647-2fbc1c817ce9.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/e58beafe-0672-4e75-9647-2fbc1c817ce9.jpg"
+          },
+          "name": "Jorn Van Deynhoven",
+          "slug": "jorn-van-deynhoven",
+          "url": "https://api.beatport.com/v4/catalog/artists/17632/"
+        },
+        {
+          "id": 1137,
+          "image": {
+            "id": 116622,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/85c25efa-97dc-4584-8e69-1b9e72dc6df3.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/85c25efa-97dc-4584-8e69-1b9e72dc6df3.jpg"
+          },
+          "name": "Agnelli & Nelson",
+          "slug": "agnelli-nelson",
+          "url": "https://api.beatport.com/v4/catalog/artists/1137/"
+        }
+      ],
+      "slug": "a-state-of-trance-25-years-selected-highlights",
+      "track_count": 26,
+      "upc": "8718522599613",
+      "updated": "2026-06-12T11:55:54-06:00",
+      "url": "https://api.beatport.com/v4/catalog/releases/7059903/",
+      "is_hype": false
+    },
+    {
+      "artists": [],
+      "bpm_range": {
+        "min": null,
+        "max": null
+      },
+      "catalog_number": "ZYX83195S",
+      "desc": "",
+      "enabled": true,
+      "encoded_date": "2026-06-12T09:42:08-06:00",
+      "exclusive": false,
+      "id": 7057960,
+      "image": {
+        "id": 55990983,
+        "uri": "https://geo-media.beatport.com/image_size/1400x1400/a3c2e65e-55ff-41a4-9fec-000197b20c4a.jpg",
+        "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/a3c2e65e-55ff-41a4-9fec-000197b20c4a.jpg"
+      },
+      "is_explicit": false,
+      "is_ugc_remix": false,
+      "is_dj_edit": false,
+      "label": {
+        "id": 1027,
+        "name": "ZYX",
+        "image": {
+          "id": 28527049,
+          "uri": "https://geo-media.beatport.com/image_size/500x500/b7e6279f-e7d0-4d24-b5bf-3cde98372b36.jpg",
+          "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/b7e6279f-e7d0-4d24-b5bf-3cde98372b36.jpg"
+        },
+        "slug": "zyx"
+      },
+      "name": "Techno Club Classix Vol. 1",
+      "new_release_date": "2026-05-22",
+      "override_price": null,
+      "pre_order": false,
+      "pre_order_date": null,
+      "price": {
+        "code": "EUR",
+        "symbol": "€",
+        "value": 0,
+        "display": "€0.00"
+      },
+      "price_override_firm": false,
+      "publish_date": "2026-05-22",
+      "remixers": [],
+      "slug": "techno-club-classix-vol-1",
+      "track_count": 0,
+      "upc": "194111045941",
+      "updated": "2026-06-12T03:43:21-06:00",
+      "url": "https://api.beatport.com/v4/catalog/releases/7057960/",
+      "is_hype": false
+    },
+    {
+      "artists": [
+        {
+          "id": 81500,
+          "image": {
+            "id": 30699851,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/b3e725f3-9cf0-42c1-889a-3b339f500dab.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/b3e725f3-9cf0-42c1-889a-3b339f500dab.jpg"
+          },
+          "name": "Sine Die",
+          "slug": "sine-die",
+          "url": "https://api.beatport.com/v4/catalog/artists/81500/"
+        },
+        {
+          "id": 112375,
+          "image": {
+            "id": 28334459,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/45e741ca-6d9e-4ca7-a5d2-ad19d014f56b.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/45e741ca-6d9e-4ca7-a5d2-ad19d014f56b.jpg"
+          },
+          "name": "Luix Spectrum",
+          "slug": "luix-spectrum",
+          "url": "https://api.beatport.com/v4/catalog/artists/112375/"
+        },
+        {
+          "id": 87756,
+          "image": {
+            "id": 24215741,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/a09eed3d-a0ce-4488-9602-9c4c1530834b.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/a09eed3d-a0ce-4488-9602-9c4c1530834b.jpg"
+          },
+          "name": "Fabio MC",
+          "slug": "fabio-mc",
+          "url": "https://api.beatport.com/v4/catalog/artists/87756/"
+        },
+        {
+          "id": 374553,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Carmine Caputo",
+          "slug": "carmine-caputo",
+          "url": "https://api.beatport.com/v4/catalog/artists/374553/"
+        },
+        {
+          "id": 655905,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Chriz Unknown",
+          "slug": "chriz-unknown",
+          "url": "https://api.beatport.com/v4/catalog/artists/655905/"
+        },
+        {
+          "id": 448117,
+          "image": {
+            "id": 10640400,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/6d5865b6-f789-4f3f-8766-e9bdcaa9d704.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/6d5865b6-f789-4f3f-8766-e9bdcaa9d704.jpg"
+          },
+          "name": "Daniel Herrmann",
+          "slug": "daniel-herrmann",
+          "url": "https://api.beatport.com/v4/catalog/artists/448117/"
+        },
+        {
+          "id": 701464,
+          "image": {
+            "id": 30711637,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/410cbd5c-afed-4ac8-8194-ba57a44da899.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/410cbd5c-afed-4ac8-8194-ba57a44da899.jpg"
+          },
+          "name": "Broken Robot",
+          "slug": "broken-robot",
+          "url": "https://api.beatport.com/v4/catalog/artists/701464/"
+        },
+        {
+          "id": 633181,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Schepper",
+          "slug": "schepper",
+          "url": "https://api.beatport.com/v4/catalog/artists/633181/"
+        },
+        {
+          "id": 535933,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "Jin du Jun",
+          "slug": "jin-du-jun",
+          "url": "https://api.beatport.com/v4/catalog/artists/535933/"
+        },
+        {
+          "id": 400919,
+          "image": {
+            "id": 23325667,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/f50d9db4-b820-4486-9426-6594a491b621.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/f50d9db4-b820-4486-9426-6594a491b621.jpg"
+          },
+          "name": "Marvin Erbe",
+          "slug": "marvin-erbe",
+          "url": "https://api.beatport.com/v4/catalog/artists/400919/"
+        },
+        {
+          "id": 976991,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "N.O.S. (BE)",
+          "slug": "nos-be",
+          "url": "https://api.beatport.com/v4/catalog/artists/976991/"
+        },
+        {
+          "id": 655305,
+          "image": {
+            "id": 42849118,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/5ee1aa05-68f8-4900-9f86-678336717c4c.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/5ee1aa05-68f8-4900-9f86-678336717c4c.jpg"
+          },
+          "name": "Gianni Di Bernardo",
+          "slug": "gianni-di-bernardo",
+          "url": "https://api.beatport.com/v4/catalog/artists/655305/"
+        },
+        {
+          "id": 775425,
+          "image": {
+            "id": 31808011,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/775be78f-7bf1-4244-970e-6e43189cb9d4.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/775be78f-7bf1-4244-970e-6e43189cb9d4.jpg"
+          },
+          "name": "Rian Wood",
+          "slug": "rian-wood",
+          "url": "https://api.beatport.com/v4/catalog/artists/775425/"
+        },
+        {
+          "id": 444754,
+          "image": {
+            "id": 22847756,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0718290f-b11d-43c9-8b40-b86381e56631.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0718290f-b11d-43c9-8b40-b86381e56631.jpg"
+          },
+          "name": "DeckeR",
+          "slug": "decker",
+          "url": "https://api.beatport.com/v4/catalog/artists/444754/"
+        },
+        {
+          "id": 489581,
+          "image": {
+            "id": 16402884,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/b76ff383-d351-4654-8889-f24b12d7ea3e.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/b76ff383-d351-4654-8889-f24b12d7ea3e.jpg"
+          },
+          "name": "D.N.S",
+          "slug": "dns",
+          "url": "https://api.beatport.com/v4/catalog/artists/489581/"
+        },
+        {
+          "id": 45421,
+          "image": {
+            "id": 46585923,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/2ff4e70d-7c22-448e-8600-b42a3f6a5dfc.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/2ff4e70d-7c22-448e-8600-b42a3f6a5dfc.jpg"
+          },
+          "name": "Sergy Casttle",
+          "slug": "sergy-casttle",
+          "url": "https://api.beatport.com/v4/catalog/artists/45421/"
+        },
+        {
+          "id": 648459,
+          "image": {
+            "id": 24572743,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/769dae4f-ffdb-4b24-87cb-4167b12fa37a.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/769dae4f-ffdb-4b24-87cb-4167b12fa37a.jpg"
+          },
+          "name": "Roberto Perez",
+          "slug": "roberto-perez",
+          "url": "https://api.beatport.com/v4/catalog/artists/648459/"
+        },
+        {
+          "id": 836261,
+          "image": {
+            "id": 24361714,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/196f04b0-4d88-4f2b-8400-034ead2efa8d.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/196f04b0-4d88-4f2b-8400-034ead2efa8d.jpg"
+          },
+          "name": "Marciani",
+          "slug": "marciani",
+          "url": "https://api.beatport.com/v4/catalog/artists/836261/"
+        },
+        {
+          "id": 488693,
+          "image": {
+            "id": 12250166,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/afbad300-96a7-4f96-9007-4e694a71d575.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/afbad300-96a7-4f96-9007-4e694a71d575.jpg"
+          },
+          "name": "Katapult Duo",
+          "slug": "katapult-duo",
+          "url": "https://api.beatport.com/v4/catalog/artists/488693/"
+        },
+        {
+          "id": 706453,
+          "image": {
+            "id": 24863891,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/c1ce74bc-1945-497b-a3b8-85ed27959eea.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/c1ce74bc-1945-497b-a3b8-85ed27959eea.jpg"
+          },
+          "name": "Inhum'Awz",
+          "slug": "inhumawz",
+          "url": "https://api.beatport.com/v4/catalog/artists/706453/"
+        }
+      ],
+      "bpm_range": {
+        "min": 68,
+        "max": 158
+      },
+      "catalog_number": "KNTRL002D1D1",
+      "desc": null,
+      "enabled": true,
+      "encoded_date": "2026-06-11T03:48:14-06:00",
+      "exclusive": false,
+      "id": 7050412,
+      "image": {
+        "id": 55939416,
+        "uri": "https://geo-media.beatport.com/image_size/1400x1400/1cb622f1-40df-4980-aa74-7804884446e6.jpg",
+        "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/1cb622f1-40df-4980-aa74-7804884446e6.jpg"
+      },
+      "is_explicit": false,
+      "is_ugc_remix": false,
+      "is_dj_edit": false,
+      "label": {
+        "id": 111344,
+        "name": "KNTRL",
+        "image": {
+          "id": 33532584,
+          "uri": "https://geo-media.beatport.com/image_size/500x500/1e7c64cb-b916-49f7-b811-ebc5b740d055.jpg",
+          "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/1e7c64cb-b916-49f7-b811-ebc5b740d055.jpg"
+        },
+        "slug": "kntrl"
+      },
+      "name": "CNTRL Dance",
+      "new_release_date": "2023-05-26",
+      "override_price": null,
+      "pre_order": false,
+      "pre_order_date": null,
+      "price": {
+        "code": "EUR",
+        "symbol": "€",
+        "value": 7.99,
+        "display": "€7.99"
+      },
+      "price_override_firm": false,
+      "publish_date": "2023-05-26",
+      "remixers": [
+        {
+          "id": 735691,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "M00DY",
+          "slug": "m00dy",
+          "url": "https://api.beatport.com/v4/catalog/artists/735691/"
+        },
+        {
+          "id": 550522,
+          "image": {
+            "id": 16342876,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/01736523-1248-45d0-bdd7-de7526999ad6.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/01736523-1248-45d0-bdd7-de7526999ad6.jpg"
+          },
+          "name": "Sperber & Oener",
+          "slug": "sperber-oener",
+          "url": "https://api.beatport.com/v4/catalog/artists/550522/"
+        },
+        {
+          "id": 34848,
+          "image": {
+            "id": 28273356,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/1edde11b-02eb-4d3c-b150-f95304cad3e3.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/1edde11b-02eb-4d3c-b150-f95304cad3e3.jpg"
+          },
+          "name": "Hammerschmidt",
+          "slug": "hammerschmidt",
+          "url": "https://api.beatport.com/v4/catalog/artists/34848/"
+        },
+        {
+          "id": 291389,
+          "image": {
+            "id": 8980486,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/92208c68-1f32-477b-8bad-de77738f7eab.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/92208c68-1f32-477b-8bad-de77738f7eab.jpg"
+          },
+          "name": "exploSpirit",
+          "slug": "explospirit",
+          "url": "https://api.beatport.com/v4/catalog/artists/291389/"
+        },
+        {
+          "id": 520234,
+          "image": {
+            "id": 20147447,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/e1df57ab-3736-425e-aab4-42a58a04e930.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/e1df57ab-3736-425e-aab4-42a58a04e930.jpg"
+          },
+          "name": "Dino Maggiorana",
+          "slug": "dino-maggiorana",
+          "url": "https://api.beatport.com/v4/catalog/artists/520234/"
+        },
+        {
+          "id": 806521,
+          "image": {
+            "id": 23229812,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/532de36a-ce73-4fa8-9bf0-ee999bd30fca.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/532de36a-ce73-4fa8-9bf0-ee999bd30fca.jpg"
+          },
+          "name": "The Phantom (CR)",
+          "slug": "the-phantom-cr",
+          "url": "https://api.beatport.com/v4/catalog/artists/806521/"
+        },
+        {
+          "id": 483089,
+          "image": {
+            "id": 5539565,
+            "uri": "https://geo-media.beatport.com/image_size/590x404/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg",
+            "dynamic_uri": "https://geo-media.beatport.com/image_size/{w}x{h}/0dc61986-bccf-49d4-8fad-6b147ea8f327.jpg"
+          },
+          "name": "NoCure",
+          "slug": "nocure",
+          "url": "https://api.beatport.com/v4/catalog/artists/483089/"
+        }
+      ],
+      "slug": "cntrl-dance",
+      "track_count": 20,
+      "upc": "4065328911380",
+      "updated": "2026-06-10T21:49:55-06:00",
+      "url": "https://api.beatport.com/v4/catalog/releases/7050412/",
+      "is_hype": false
+    }
+  ],
+  "next": "api.beatport.com/v4/catalog/releases/?artist_name=armin&page=2",
+  "previous": null,
+  "count": 5023,
+  "page": "1/503",
+  "per_page": 10
+}
+```

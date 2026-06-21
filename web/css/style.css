@@ -790,20 +790,26 @@ label {
 .btn-search:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-search svg { width: 17px; height: 17px; }
 
+.search-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
 .search-tabs {
   display: flex;
   gap: 6px;
-  margin-bottom: 16px;
   flex-wrap: wrap;
 }
 
 .search-options {
   display: flex;
-  align-items: center;
-  gap: 20px;
+  align-items: flex-end;
+  gap: 16px;
   flex-wrap: wrap;
-  padding-top: 4px;
-  border-top: 1px solid var(--border);
+  margin-left: auto;
 }
 
 .search-option {
@@ -831,7 +837,8 @@ label {
 .search-toggle {
   font-size: 0.82rem;
   color: var(--text-2);
-  margin-top: 18px;
+  margin-bottom: 8px;
+  white-space: nowrap;
 }
 
 .search-status-bar {

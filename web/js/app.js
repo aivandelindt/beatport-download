@@ -258,11 +258,15 @@ function initSearch() {
     pill.classList.add('active');
     state.searchType = pill.dataset.type;
     syncSearchOptionsUI();
-    triggerSearchIfReady();
+    syncSearchControlsFromUI();
+    const query = getSearchQuery();
+    if (canRunSearch(query)) {
+      runSearch(query);
+    }
   });
 
   syncSearchOptionsUI();
-  state.searchPerPage = parseInt(perPage?.value, 10) || 50;
+  syncSearchControlsFromUI();
 
   btnSearch?.addEventListener('click', () => startSearch());
 
@@ -292,14 +296,13 @@ function initSearch() {
 }
 
 function startSearch() {
-  const input = $('#search-input');
-  const q = input?.value.trim() || '';
-  const hasQuery = q.length >= 2;
-  if (!hasQuery && !state.searchGenreId) {
+  syncSearchControlsFromUI();
+  const query = getSearchQuery();
+  if (!canRunSearch(query)) {
     toast('Enter at least 2 characters or pick a genre', 'warn');
     return;
   }
-  runSearch(q);
+  runSearch(query);
 }
 
 async function loadSearchGenres() {
@@ -317,13 +320,31 @@ async function loadSearchGenres() {
   } catch (_) {}
 }
 
+function getSearchQuery() {
+  return ($('#search-input')?.value.trim() || state.searchQuery || '');
+}
+
+function syncSearchControlsFromUI() {
+  const perPage = $('#search-per-page');
+  const genreSelect = $('#search-genre');
+  state.searchPerPage = parseInt(perPage?.value, 10) || 50;
+  state.searchGenreId = parseInt(genreSelect?.value, 10) || 0;
+}
+
+function canRunSearch(query) {
+  return query.length >= 2 || state.searchGenreId > 0;
+}
+
 function triggerSearchIfReady() {
-  if (state.searchQuery.length >= 2 || state.searchGenreId) {
-    runSearch(state.searchQuery || $('#search-input')?.value.trim() || '');
+  syncSearchControlsFromUI();
+  const query = getSearchQuery();
+  if (canRunSearch(query)) {
+    runSearch(query);
   }
 }
 
 async function runSearch(query) {
+  syncSearchControlsFromUI();
   const hasQuery = query.length >= 2;
   if (!hasQuery && !state.searchGenreId) return;
 

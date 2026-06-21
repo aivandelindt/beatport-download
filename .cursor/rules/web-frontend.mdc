@@ -1,0 +1,34 @@
+---
+description: Embedded web UI conventions (vanilla HTML/CSS/JS)
+globs: web/**
+alwaysApply: false
+---
+
+# Web Frontend
+
+No bundler or framework. Edit `web/index.html`, `web/css/style.css`, `web/js/app.js` directly.
+
+## Security & DOM
+
+- Escape all API/user strings with `escHtml()` before inserting HTML
+- Use `event.stopPropagation()` on action buttons inside clickable rows/cards
+
+## Search UX
+
+- Search runs on **Search button** or **Enter** only — no input debounce
+- Requires 2+ query characters **or** a selected genre
+- Before each search: `syncSearchControlsFromUI()` then `getSearchQuery()`
+- Tab clicks re-run search with current genre and max results when criteria are met
+- Cancel in-flight requests with `AbortController`
+
+## Layout patterns
+
+- `.search-toolbar`: type tabs (left) + filters (right, `margin-left: auto`)
+- Collapsible sections: `COLLAPSIBLE_SEARCH_SECTIONS`, `state.searchSectionCollapsed`
+- Artist/Label/Chart: `.artist-card-row` + `.artist-card` (charts/labels use `.chart-card`)
+- Releases: `.search-item-release` grid (chevron | cover | info | actions); nested tracks via row click
+- Camelot keys: colored text (`.camelot-code`), not pill badges
+
+## State
+
+Central `state` object in `app.js`. Re-render via `renderSearchResults(state.searchResults)` after sort/toggle changes.

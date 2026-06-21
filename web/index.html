@@ -79,41 +79,43 @@
             </button>
           </div>
 
-          <div class="search-tabs" id="search-tabs">
-            <button class="pill active" data-type="all">All</button>
-            <button class="pill" data-type="artists">Artists</button>
-            <button class="pill" data-type="releases">Releases</button>
-            <button class="pill" data-type="tracks">Tracks</button>
-            <button class="pill" data-type="labels">Labels</button>
-            <button class="pill" data-type="charts">Charts</button>
-          </div>
+          <div class="search-toolbar">
+            <div class="search-tabs" id="search-tabs">
+              <button class="pill active" data-type="all">All</button>
+              <button class="pill" data-type="artists">Artists</button>
+              <button class="pill" data-type="releases">Releases</button>
+              <button class="pill" data-type="tracks">Tracks</button>
+              <button class="pill" data-type="labels">Labels</button>
+              <button class="pill" data-type="charts">Charts</button>
+            </div>
 
-          <div class="search-options">
-            <div class="search-option">
-              <label for="search-genre">Genre</label>
-              <select id="search-genre" class="select-input">
-                <option value="">All genres</option>
-              </select>
+            <div class="search-options">
+              <div class="search-option">
+                <label for="search-genre">Genre</label>
+                <select id="search-genre" class="select-input">
+                  <option value="">All genres</option>
+                </select>
+              </div>
+              <div class="search-option">
+                <label for="search-per-page">Max results</label>
+                <select id="search-per-page" class="select-input">
+                  <option value="50" selected>50</option>
+                  <option value="100">100</option>
+                  <option value="150">150</option>
+                  <option value="200">200</option>
+                </select>
+              </div>
+              <label class="toggle search-toggle" id="search-include-artists-wrap">
+                <input type="checkbox" id="search-include-artists" />
+                <span class="toggle-slider"></span>
+                Include artists
+              </label>
+              <label class="toggle search-toggle" id="search-top-tracks-wrap">
+                <input type="checkbox" id="search-top-tracks" />
+                <span class="toggle-slider"></span>
+                Artist top 10
+              </label>
             </div>
-            <div class="search-option">
-              <label for="search-per-page">Max results</label>
-              <select id="search-per-page" class="select-input">
-                <option value="50" selected>50</option>
-                <option value="100">100</option>
-                <option value="150">150</option>
-                <option value="200">200</option>
-              </select>
-            </div>
-            <label class="toggle search-toggle" id="search-include-artists-wrap">
-              <input type="checkbox" id="search-include-artists" />
-              <span class="toggle-slider"></span>
-              Include artists
-            </label>
-            <label class="toggle search-toggle" id="search-top-tracks-wrap">
-              <input type="checkbox" id="search-top-tracks" />
-              <span class="toggle-slider"></span>
-              Artist top 10
-            </label>
           </div>
         </div>
 

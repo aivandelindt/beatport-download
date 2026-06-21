@@ -1,0 +1,36 @@
+---
+description: Catalog search feature — read before changing search API or UI
+globs: internal/server/handlers.go,internal/beatport/client.go,internal/beatport/types.go,internal/config/config.go,web/js/app.js,web/index.html
+alwaysApply: false
+---
+
+# Catalog Search
+
+**Read first:** `.claude/skills/beatport-catalog-search/SKILL.md`
+
+## API summary
+
+`GET /api/search?q=&type=all|tracks|artists|releases|labels|charts&genre_id=&per_page=&include_artists=&top_tracks=`
+
+- **All tab:** single `SearchCombined` call; trim sections via `applySearchLimits`
+- **Tracks tab:** `collectSearchTracks` merges four sources; `per_page` controls track count
+- **Genre-only browse:** tracks only (no query)
+- Releases sorted newest-first; multi-track releases fetch nested tracks server-side
+
+## Frontend helpers (app.js)
+
+| Helper | Purpose |
+|--------|---------|
+| `runSearch` / `triggerSearchIfReady` | Fetch and render |
+| `searchSectionWrap` | Collapsible section shell |
+| `searchTrackTableHTML` | Sortable track table |
+| `searchReleaseHTML` / `bindReleaseRows` | Release rows + expand |
+| `expandAllSearchSections` / `collapseAllSearchSections` | Bulk section + release toggle |
+| `searchArtistCardHTML` / `searchLabelCardHTML` / `searchChartCardHTML` | Card rows |
+
+## Do not
+
+- Add debounced search on input
+- Use `order_by` on artist typed search
+- Assume typed search JSON has a `results` array
+- Break chevron column alignment on release rows (always reserve 18px)

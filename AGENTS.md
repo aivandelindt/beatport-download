@@ -2,18 +2,42 @@
 
 - Propagate `r.Context()` through Beatport client and HTTP handler methods; load the golang-context skill for Go API work.
 - Capture repeatable feature workflows as project skills under `.claude/skills/`.
+- Only create git commits when explicitly requested.
 
 ## Learned Workspace Facts
 
-- Go 1.22 monolith with embedded `web/` (vanilla HTML/CSS/JS via go:embed).
+- Go 1.22 monolith with embedded `web/` (vanilla HTML/CSS/JS via `go:embed`); no frontend build step.
 - Config at `~/.config/beatportdl-ui/config.yml`; OAuth credentials at `~/.config/beatportdl-ui/beatportdl-credentials.json`.
 - Default HTTP server port is 8989 (falls back to 8990 when 8989 is busy).
 - Makefile supports cross-compilation; no `*_test.go` files yet — verify with `go build ./...`.
 - Beatport API base is `https://api.beatport.com/v4`; OAuth is required for catalog search and downloads.
-- Catalog search: Beatport `GET /catalog/search/?q=...&type=tracks|artists&page=N&per_page=N`; app exposes `GET /api/search?q=...&type=all|tracks|artists&page=1&per_page=25`.
-- Typed search responses use `tracks` or `artists` keys — not a `results` array.
-- Do not pass `order_by=-publish_date` on artist search (API returns empty `{}`).
-- Search is the default web view; queries run explicitly via `#btn-search` or Enter (no input debounce); requires 2+ characters or a selected genre; filter/tab changes re-run via `triggerSearchIfReady()` when a search is active.
-- Track search results render Camelot keys as colored text (`.camelot-code`), not background pill badges.
-- Downloads from search results reuse existing `POST /api/download`.
-- Catalog search workflow is documented in `.claude/skills/beatport-catalog-search/SKILL.md`.
+- Outbound Beatport HTTP calls are logged via `logging.BeatportAPI` in `internal/beatport/client.go`.
+
+## UI
+
+- Top bar navigation (not sidebar): Search | Download | Queue | Fix Tags | Settings.
+- Search is the default view. `.main` and views are full width.
+
+## Catalog search
+
+Full workflow: `.claude/skills/beatport-catalog-search/SKILL.md` (v1.4.0). Cursor rules: `.cursor/rules/` (`project-overview`, `go-backend`, `web-frontend`, `catalog-search`).
+
+**App API:** `GET /api/search?q=&type=all|tracks|artists|releases|labels|charts&genre_id=&per_page=50-200&include_artists=&top_tracks=` and `GET /api/genres`.
+
+- **All tab:** single `SearchCombined` call; five sections trimmed by Settings limits.
+- **Tracks tab:** `collectSearchTracks` merges four sources; `per_page` controls track count only.
+- **Settings limits** (default 10 each): `search_limit_artists`, `search_limit_releases`, `search_limit_labels`, `search_limit_charts`.
+- Typed Beatport search JSON uses category keys (`tracks`, `artists`, …), not `results`.
+- Use `order_by=-publish_date` for track and release search; omit on artist search (returns `{}`).
+- Releases sorted newest-first; multi-track releases include nested tracks from `ListReleaseTracks`.
+
+**Search UX:**
+
+- Explicit Search button or Enter; no input debounce.
+- Requires 2+ characters or a selected genre.
+- `.search-toolbar`: type tabs + genre / max results / toggles on one row.
+- Tab click and filter changes call `syncSearchControlsFromUI()` then re-search when criteria are met.
+- Collapsible sections: Artists, Releases, Tracks, Labels, Charts; Expand all / Collapse all also toggles release nested tracks.
+- Artists, Labels, Charts: horizontal card rows; Releases: list rows with click-to-expand nested track table.
+- Camelot keys: colored text (`.camelot-code`), not pill badges.
+- Downloads from results use `POST /api/download`.

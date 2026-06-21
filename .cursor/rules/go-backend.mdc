@@ -1,0 +1,30 @@
+---
+description: Go backend conventions for BeatportDL-UI
+globs: internal/**/*.go,main.go
+alwaysApply: false
+---
+
+# Go Backend
+
+## Context
+
+Propagate `context.Context` from HTTP handlers into Beatport client methods. Never use `context.Background()` mid-request.
+
+## Beatport client
+
+- Authenticate with `client.Authenticate()` before catalog calls
+- Log outbound API calls via `logging.BeatportAPI` in `doRequest`
+- Typed search responses use category keys (`tracks`, `artists`, …), not `results` — decode with `decodeTypedSearchPage`
+- Use `order_by=-publish_date` for **track** and **release** search only; omit on artist search (returns empty `{}`)
+
+## Handlers
+
+- Search: `GET /api/search` — see skill for combined vs typed paths, `collectSearchTracks`, `applySearchLimits`
+- Config limits: `search_limit_artists|releases|labels|charts` in `internal/config/config.go` (default 10)
+- Use `slog` for handler logs; return JSON errors via `respondErr`
+
+## Changes
+
+- Minimize scope; match existing handler/client patterns
+- Extend DTOs in `handlers.go`, types in `internal/beatport/types.go`
+- Apply config defaults in `Config.applyDefaults()`
