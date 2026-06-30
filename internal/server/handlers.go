@@ -370,6 +370,12 @@ func sortReleasesByDateDesc(releases []beatport.Release) {
 	})
 }
 
+func sortChartsByDateDesc(charts []beatport.Chart) {
+	sort.Slice(charts, func(i, j int) bool {
+		return charts[i].PublishDate > charts[j].PublishDate
+	})
+}
+
 func fillAllSearchResults(ctx context.Context, client *beatport.Client, query string, page, perPage, genreID int, topTracks bool, payload *SearchResponsePayload) error {
 	combinedPerPage := perPage
 	if combinedPerPage > 100 {
@@ -531,6 +537,7 @@ func labelPageFromLabels(labels []beatport.Label, page int) *SearchResultPage[Se
 }
 
 func chartPageFromCharts(charts []beatport.Chart, page int) *SearchResultPage[SearchChartItem] {
+	sortChartsByDateDesc(charts)
 	items := make([]SearchChartItem, 0, len(charts))
 	for _, c := range charts {
 		items = append(items, chartToSearchItem(c))

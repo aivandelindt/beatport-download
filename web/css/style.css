@@ -948,6 +948,7 @@ label {
 
 .artist-card-row {
   display: flex;
+  align-items: stretch;
   gap: 12px;
   overflow-x: auto;
   padding-bottom: 6px;
@@ -1051,12 +1052,14 @@ label {
 .chart-card {
   flex: 0 0 220px;
   width: 220px;
-  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
 }
 .chart-card .artist-card-media {
   aspect-ratio: unset;
   display: flex;
   flex-direction: column;
+  flex: 1;
   overflow: hidden;
 }
 .chart-card .artist-card-cover {
@@ -1093,6 +1096,14 @@ label {
   overflow: visible;
   text-overflow: unset;
   margin-top: 4px;
+}
+.chart-card .artist-card-date {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
 }
 .chart-card .artist-card-actions {
   top: 6px;

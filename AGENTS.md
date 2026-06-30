@@ -28,8 +28,8 @@ Full workflow: `.claude/skills/beatport-catalog-search/SKILL.md` (v1.4.0). Curso
 - **Tracks tab:** `collectSearchTracks` merges four sources; `per_page` controls track count only.
 - **Settings limits** (default 10 each): `search_limit_artists`, `search_limit_releases`, `search_limit_labels`, `search_limit_charts`.
 - Typed Beatport search JSON uses category keys (`tracks`, `artists`, …), not `results`.
-- Use `order_by=-publish_date` for track and release search; omit on artist search (returns `{}`).
-- Releases sorted newest-first; multi-track releases include nested tracks from `ListReleaseTracks`.
+- Use `order_by=-publish_date` for track, release, and chart search; omit on artist search (returns `{}`).
+- Releases and charts sorted newest-first; multi-track releases include nested tracks from `ListReleaseTracks`.
 
 **Search UX:**
 
@@ -38,6 +38,7 @@ Full workflow: `.claude/skills/beatport-catalog-search/SKILL.md` (v1.4.0). Curso
 - `.search-toolbar`: type tabs + genre / max results / toggles on one row.
 - Tab click and filter changes call `syncSearchControlsFromUI()` then re-search when criteria are met.
 - Collapsible sections: Artists, Releases, Tracks, Labels, Charts; Expand all / Collapse all also toggles release nested tracks.
-- Artists, Labels, Charts: horizontal card rows; Releases: list rows with click-to-expand nested track table.
+- Artists, Labels, Charts: horizontal `.artist-card-row` cards; chart cards equal height, publish date as `YYYY-MM-DD` (`formatDateISO()`).
+- Releases: list rows with reserved 18px chevron column and click-to-expand nested track table; row action buttons align right.
 - Camelot keys: colored text (`.camelot-code`), not pill badges.
 - Downloads from results use `POST /api/download`.

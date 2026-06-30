@@ -517,9 +517,10 @@ function renderSearchResults(data) {
   }
 
   if (data.charts?.items?.length) {
-    sections.push(searchSectionWrap('charts', 'Charts', data.charts.count || data.charts.items.length, `
+    const charts = sortChartsByDate(data.charts.items);
+    sections.push(searchSectionWrap('charts', 'Charts', data.charts.count || charts.length, `
         <div class="artist-card-row">
-          ${data.charts.items.map(c => searchChartCardHTML(c)).join('')}
+          ${charts.map(c => searchChartCardHTML(c)).join('')}
         </div>`));
   }
 
@@ -697,6 +698,18 @@ function formatReleased(dateStr) {
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+function formatDateISO(dateStr) {
+  if (!dateStr) return '';
+  const iso = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (iso) return iso[1];
+  const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return dateStr;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function searchTrackRowHTML(t) {
   return `
     <div class="search-item search-track-row" data-url="${escHtml(t.url)}">
@@ -784,6 +797,10 @@ function bindArtistCards(container) {
   });
 }
 
+function sortChartsByDate(items) {
+  return [...items].sort((a, b) => (b.published || '').localeCompare(a.published || ''));
+}
+
 function sortReleasesByDate(items) {
   return [...items].sort((a, b) => (b.released || '').localeCompare(a.released || ''));
 }
@@ -859,6 +876,10 @@ function searchChartCardHTML(c) {
     ? `<span class="artist-card-sub">${escHtml(c.curator)}</span>`
     : '';
 
+  const published = c.published
+    ? `<span class="artist-card-date">${escHtml(formatDateISO(c.published))}</span>`
+    : '';
+
   return `
     <div class="artist-card chart-card" data-url="${escHtml(c.url)}" title="${escHtml(c.name)}">
       <div class="artist-card-media">
@@ -866,6 +887,7 @@ function searchChartCardHTML(c) {
         <div class="artist-card-text">
           <span class="artist-card-name">${escHtml(c.name)}</span>
           ${curator}
+          ${published}
         </div>
         <div class="artist-card-actions">
           <a class="btn-icon btn-icon-sm" href="${escHtml(c.url)}" target="_blank" rel="noopener" title="Open on Beatport" onclick="event.stopPropagation()">
