@@ -149,12 +149,13 @@ func analyzeCLI(ctx context.Context, bin, path, kind string) (Analysis, error) {
 	a.Path = path
 	a.Kind = kind
 	if kind != KindFullAnalysis {
-		a = trimAnalysis(a, kind)
+		a = TrimAnalysis(a, kind)
 	}
 	return a, nil
 }
 
-func trimAnalysis(full Analysis, kind string) Analysis {
+// TrimAnalysis returns a copy of full with only fields for the requested kind.
+func TrimAnalysis(full Analysis, kind string) Analysis {
 	out := Analysis{
 		Kind:    kind,
 		Source:  full.Source,

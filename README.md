@@ -10,7 +10,7 @@ Go 1.22 monolith with an embedded vanilla HTML/CSS/JS frontend — no separate f
 - **Download** — paste Beatport URLs (track, release, playlist, chart, artist)
 - **Queue** — job progress over WebSocket, ZIP export
 - **Fix Tags** — batch metadata repair with ffmpeg
-- **Audio** — analyze local files, split stems (HT-Demucs ONNX), loudness-normalize
+- **Audio** — analyze local files (with optional cache), split stems (HT-Demucs ONNX), loudness-normalize, browse analysis Library
 - **Settings** — credentials, output directory, quality, workers, audio tool paths
 
 ## Requirements
@@ -98,13 +98,14 @@ POST /api/download   { "url": "...", "quality": "lossless" }
 
 ## Audio tools
 
-The **Audio** tab analyzes, stem-splits, and normalizes files under a chosen path (or the settings output directory). Progress appears in **Queue**.
+The **Audio** tab analyzes, stem-splits, and normalizes files under a chosen path (or the settings output directory). Progress appears in **Queue**. Analysis results persist in SQLite by default (`~/.config/beatportdl-ui/analysis.db`); optional Postgres via Settings.
 
 | Panel | Backend |
 |-------|---------|
-| Analyze | `audio-analyzer-rs` MCP (`mcp-server`) or CLI (`cli`); formatted text parsed to JSON |
+| Analyze | `audio-analyzer-rs` MCP (`mcp-server`) or CLI (`cli`); formatted text parsed to JSON; cache reuse unless **Force re-analyze** |
 | Stems | `stem-splitter` (crate `stem-splitter-core` 1.2.0 ONNX). Apple Silicon defaults to CoreML; Intel uses CPU/XNNPACK |
 | Normalize | ffmpeg two-pass EBU R128 `loudnorm` (sidecar `*_normalized` by default) |
+| Library | Searchable table of persisted analyses (path, key, BPM, LUFS); detail view, delete, re-analyze |
 
 ```bash
 make audio-analyzer-mcp   # third_party/.../target/release/mcp-server
@@ -113,6 +114,8 @@ make stem-splitter        # dist/tools/bin/stem-splitter
 ```
 
 The UI shells out to these local binaries. Cursor’s `.cursor/mcp.json` audio-analyzer entry remains a separate local stdio MCP for agents (not Runlayer-managed); the web UI does not go through Cursor MCP.
+
+Full guide: [docs/audio-tools.md](docs/audio-tools.md).
 
 ## Build
 
@@ -178,13 +181,16 @@ Project MCP client config (`.cursor/mcp.json`):
 | DELETE | `/api/jobs/{id}` | Remove job |
 | GET | `/api/jobs/{id}/zip` | Download ZIP |
 | POST | `/api/fix` | Fix tags in directory |
-| GET | `/api/audio/tools` | Analyzer / stem-splitter / ffmpeg presence |
-| POST | `/api/audio/analyze` | Queue analysis job |
+| GET | `/api/audio/tools` | Analyzer / stem-splitter / ffmpeg presence; `analysis_store` flag |
+| POST | `/api/audio/analyze` | Queue analysis job (`force` skips cache) |
 | POST | `/api/audio/normalize` | Queue loudnorm job |
 | POST | `/api/audio/stems` | Queue stem-split job |
+| GET | `/api/audio/library` | List persisted analyses (`q`, `key`, `bpm_min`, `bpm_max`, pagination) |
+| GET | `/api/audio/library/{id}` | Single analysis with full payload |
+| DELETE | `/api/audio/library/{id}` | Remove analysis row |
 | GET | `/api/ws` | WebSocket progress |
 
 ## Further reading
 
 - Catalog search: `.claude/skills/beatport-catalog-search/SKILL.md`
-- Audio tools: `.claude/skills/audio-tools/SKILL.md`
+- Audio tools: [docs/audio-tools.md](docs/audio-tools.md) and `.claude/skills/audio-tools/SKILL.md`

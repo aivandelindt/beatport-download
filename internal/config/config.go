@@ -32,6 +32,9 @@ type Config struct {
 	NormalizeTargetLUFS  float64 `yaml:"normalize_target_lufs"  json:"normalize_target_lufs"`
 	NormalizeTruePeak    float64 `yaml:"normalize_true_peak"    json:"normalize_true_peak"`
 	NormalizeLRA         float64 `yaml:"normalize_lra"          json:"normalize_lra"`
+
+	AnalysisDBDriver string `yaml:"analysis_db_driver" json:"analysis_db_driver"`
+	AnalysisDBDSN    string `yaml:"analysis_db_dsn"    json:"analysis_db_dsn"`
 }
 
 func DefaultConfig() *Config {
@@ -54,6 +57,7 @@ func DefaultConfig() *Config {
 		NormalizeTargetLUFS:  -14,
 		NormalizeTruePeak:    -1.5,
 		NormalizeLRA:         11,
+		AnalysisDBDriver:     "sqlite",
 	}
 }
 
@@ -156,5 +160,8 @@ func (c *Config) applyDefaults() {
 	}
 	if c.NormalizeLRA == 0 {
 		c.NormalizeLRA = 11
+	}
+	if c.AnalysisDBDriver == "" {
+		c.AnalysisDBDriver = "sqlite"
 	}
 }

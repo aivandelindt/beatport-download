@@ -3,16 +3,21 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"beatportdl-ui/internal/audio"
+	"beatportdl-ui/internal/audio/store"
 	"beatportdl-ui/internal/config"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // GET /api/audio/tools
@@ -35,6 +40,7 @@ func (s *Server) handleAudioTools(w http.ResponseWriter, r *http.Request) {
 		"stem_splitter_path":    stem,
 		"ffmpeg":                ffmpegErr == nil,
 		"stem_provider_default": audio.DefaultStemProvider(),
+		"analysis_store":        s.analysisStore != nil,
 	})
 }
 
@@ -44,6 +50,7 @@ func (s *Server) handleAudioAnalyze(w http.ResponseWriter, r *http.Request) {
 		Path    string `json:"path"`
 		Kind    string `json:"kind"`
 		Backend string `json:"backend"`
+		Force   bool   `json:"force"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondErr(w, 400, "invalid JSON")
@@ -97,12 +104,12 @@ func (s *Server) handleAudioAnalyze(w http.ResponseWriter, r *http.Request) {
 	s.broadcastJob(job)
 
 	ctx := context.WithoutCancel(r.Context())
-	go s.runAnalyzeJob(ctx, job, files, kind, backend, &cfg)
+	go s.runAnalyzeJob(ctx, job, files, kind, backend, req.Force, &cfg)
 
 	respond(w, 202, map[string]string{"job_id": jobID})
 }
 
-func (s *Server) runAnalyzeJob(ctx context.Context, job *Job, files []string, kind, backend string, cfg *config.Config) {
+func (s *Server) runAnalyzeJob(ctx context.Context, job *Job, files []string, kind, backend string, force bool, cfg *config.Config) {
 	job.Status = "running"
 	s.broadcastJob(job)
 
@@ -128,7 +135,61 @@ func (s *Server) runAnalyzeJob(ctx context.Context, job *Job, files []string, ki
 		default:
 		}
 
+		abs, err := filepath.Abs(file)
+		if err != nil {
+			job.Failed++
+			job.Tracks = append(job.Tracks, TrackSummary{
+				ID: i + 1, Title: filepath.Base(file), Status: "error", Message: err.Error(),
+			})
+			slog.Error("analyze failed", "file", file, "err", err)
+			s.broadcastJob(job)
+			continue
+		}
+		abs = filepath.Clean(abs)
+		fi, err := os.Stat(abs)
+		if err != nil {
+			job.Failed++
+			job.Tracks = append(job.Tracks, TrackSummary{
+				ID: i + 1, Title: filepath.Base(file), Status: "error", Message: err.Error(),
+			})
+			slog.Error("analyze failed", "file", file, "err", err)
+			s.broadcastJob(job)
+			continue
+		}
+
+		if !force && s.analysisStore != nil {
+			cached, ok, cacheErr := s.analysisStore.GetFresh(ctx, abs, kind, fi.Size(), fi.ModTime().Unix())
+			if cacheErr != nil {
+				slog.Warn("analysis cache lookup failed", "path", abs, "err", cacheErr)
+			} else if ok {
+				cached.Source = "cache"
+				track := TrackSummary{
+					ID:      i + 1,
+					Title:   filepath.Base(file),
+					Status:  "done",
+					Message: "cached",
+				}
+				job.Completed++
+				job.Analysis = append(job.Analysis, cached)
+				job.Tracks = append(job.Tracks, track)
+				s.hub.Broadcast(WSMessage{
+					Type: "track_progress",
+					Payload: ProgressPayload{
+						JobID:      job.ID,
+						TrackID:    i + 1,
+						TrackTitle: filepath.Base(file),
+						Status:     track.Status,
+						Progress:   100,
+						Message:    track.Message,
+					},
+				})
+				s.broadcastJob(job)
+				continue
+			}
+		}
+
 		fileCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+
 		s.hub.Broadcast(WSMessage{
 			Type: "track_progress",
 			Payload: ProgressPayload{
@@ -141,10 +202,7 @@ func (s *Server) runAnalyzeJob(ctx context.Context, job *Job, files []string, ki
 			},
 		})
 
-		var (
-			result audio.Analysis
-			err    error
-		)
+		var result audio.Analysis
 		if mcpClient != nil && backend != audio.BackendCLI {
 			result, err = audio.AnalyzeWithClient(fileCtx, mcpClient, file, kind)
 			if err != nil && (backend == audio.BackendAuto || backend == "") {
@@ -166,6 +224,15 @@ func (s *Server) runAnalyzeJob(ctx context.Context, job *Job, files []string, ki
 			})
 		}
 		cancel()
+
+		if err == nil && s.analysisStore != nil {
+			rec, recErr := store.RecordFromAnalysis(abs, fi.Size(), fi.ModTime().Unix(), result)
+			if recErr != nil {
+				slog.Warn("analysis record build failed", "path", abs, "err", recErr)
+			} else if upErr := s.analysisStore.Upsert(ctx, rec); upErr != nil {
+				slog.Warn("analysis upsert failed", "path", abs, "err", upErr)
+			}
+		}
 
 		track := TrackSummary{
 			ID:     i + 1,
@@ -405,4 +472,129 @@ func (s *Server) runStemsJob(ctx context.Context, job *Job, files []string, prov
 		job.Status = "done"
 	}
 	s.broadcastJob(job)
+}
+
+// GET /api/audio/library
+func (s *Server) handleAudioLibraryList(w http.ResponseWriter, r *http.Request) {
+	if s.analysisStore == nil {
+		respondErr(w, 503, "analysis store unavailable")
+		return
+	}
+	q := r.URL.Query()
+	f := store.ListFilter{
+		Q:      q.Get("q"),
+		Key:    q.Get("key"),
+		Limit:  atoiDefault(q.Get("limit"), 50),
+		Offset: atoiDefault(q.Get("offset"), 0),
+	}
+	if v, ok := parseOptionalFloat(q.Get("bpm_min")); ok {
+		f.BPMMin = v
+	}
+	if v, ok := parseOptionalFloat(q.Get("bpm_max")); ok {
+		f.BPMMax = v
+	}
+	items, total, err := s.analysisStore.List(r.Context(), f)
+	if err != nil {
+		respondErr(w, 500, err.Error())
+		return
+	}
+	respond(w, 200, map[string]interface{}{
+		"items": items,
+		"total": total,
+	})
+}
+
+// GET /api/audio/library/{id}
+func (s *Server) handleAudioLibraryGet(w http.ResponseWriter, r *http.Request) {
+	if s.analysisStore == nil {
+		respondErr(w, 503, "analysis store unavailable")
+		return
+	}
+	id, err := parseLibraryID(r.PathValue("id"))
+	if err != nil {
+		respondErr(w, 400, "invalid id")
+		return
+	}
+	rec, err := s.analysisStore.GetByID(r.Context(), id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		respondErr(w, 404, "not found")
+		return
+	}
+	if err != nil {
+		respondErr(w, 500, err.Error())
+		return
+	}
+	var analysis audio.Analysis
+	if rec.PayloadJSON != "" {
+		if err := json.Unmarshal([]byte(rec.PayloadJSON), &analysis); err != nil {
+			respondErr(w, 500, "invalid stored analysis payload")
+			return
+		}
+	}
+	respond(w, 200, map[string]interface{}{
+		"id":              rec.ID,
+		"path":            rec.Path,
+		"kind":            rec.Kind,
+		"key":             rec.Key,
+		"mode":            rec.Mode,
+		"tempo_bpm":       rec.TempoBPM,
+		"lufs_integrated": rec.LUFSIntegrated,
+		"duration_sec":    rec.DurationSec,
+		"analyzed_at":     rec.AnalyzedAt,
+		"source":          rec.Source,
+		"analysis":        analysis,
+	})
+}
+
+// DELETE /api/audio/library/{id}
+func (s *Server) handleAudioLibraryDelete(w http.ResponseWriter, r *http.Request) {
+	if s.analysisStore == nil {
+		respondErr(w, 503, "analysis store unavailable")
+		return
+	}
+	id, err := parseLibraryID(r.PathValue("id"))
+	if err != nil {
+		respondErr(w, 400, "invalid id")
+		return
+	}
+	err = s.analysisStore.Delete(r.Context(), id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		respondErr(w, 404, "not found")
+		return
+	}
+	if err != nil {
+		respondErr(w, 500, err.Error())
+		return
+	}
+	respond(w, 200, map[string]string{"status": "deleted"})
+}
+
+func parseLibraryID(s string) (uint, error) {
+	n, err := strconv.ParseUint(s, 10, 64)
+	if err != nil || n == 0 {
+		return 0, err
+	}
+	return uint(n), nil
+}
+
+func atoiDefault(s string, def int) int {
+	if s == "" {
+		return def
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return def
+	}
+	return n
+}
+
+func parseOptionalFloat(s string) (float64, bool) {
+	if s == "" {
+		return 0, false
+	}
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, false
+	}
+	return f, true
 }
