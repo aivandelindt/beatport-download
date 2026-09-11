@@ -1,0 +1,74 @@
+═══ Full Audio Analysis ═══
+File: /music/jazz_trio.mp3
+Duration: 60.62 sec | Sample rate: 48000 Hz | Samples: 2909952
+Analysis completed in: 2.02s
+
+── Spectral/Temporal Features ──
+Centroid (brightness):  2812 Hz — moderate
+Bandwidth (richness):   3933 Hz — complex
+Rolloff (energy focus): 6489 Hz
+Flatness (tonality):    0.0824 — strongly tonal
+RMS Energy (loudness):  0.1160
+Zero Crossing Rate:     0.0402 — mixed
+MFCCs (timbre):         [-141.3, 13.7, 0.9, 7.7, -2.5, 3.1, -1.7, 2.3, -0.9, 1.0, -0.5, 0.9, 0.6]
+
+── Frequency Band Energy ──
+Sub bass  (20–60 Hz):     0.007803
+Bass      (60–250 Hz):    0.013043
+Low-mid   (250–500 Hz):   0.004906
+Mid       (500–2k Hz):    0.002165
+Upper-mid (2k–4k Hz):     0.000203
+Presence  (4k–6k Hz):     0.000166
+Brilliance(6k–20k Hz):    0.000089
+
+── Spectral Contrast (peak–valley dB) ──
+Sub bass  (20–60 Hz):     10.4
+Bass      (60–250 Hz):    20.4
+Low-mid   (250–500 Hz):   26.0
+Mid       (500–2k Hz):    30.9
+Upper-mid (2k–4k Hz):     19.4
+Presence  (4k–6k Hz):     16.6
+Brilliance(6k–20k Hz):    55.2
+
+── Harmonic Content ──
+Estimated key: E minor (confidence: 0.538)
+Top pitch classes:
+   1. G  0.627 ███████████████
+   2. E  0.561 ██████████████
+   3. C  0.512 ████████████
+
+── Rhythm ──
+Tempo: 84.0 BPM (confidence: 0.316)
+Beats detected: 69
+Mean tempo: 84.3 BPM | Median: 84.0 BPM
+Stability: 0.951 (0=free, 1=locked)
+
+── Percussive Character ──
+Percussive ratio:    0.277 — harmony-dominated
+Onset density:       7.0/sec — very dense
+Peak attack sharp:   1.000
+
+── Dynamic Range ──
+Peak:            -0.44 dBFS
+Crest factor:    16.2 dB — very dynamic
+Loudness range:  76.4 dB — very dynamic
+Quiet sections:  -87.5 dBFS | Loud sections: -11.1 dBFS
+
+── Loudness (EBU R128) ──
+Integrated:      -12.1 LUFS
+True peak:       0.0 dBTP
+Loudness range:  3.7 LU
+Spotify (-14):   turned DOWN 1.9 dB | Apple (-16): turned DOWN 3.9 dB | YouTube (-14): turned DOWN 1.9 dB
+
+── Stereo Field ──
+Phase correlation:   0.257 avg, -0.822 min — some phase issues
+Phase warnings:      20.6% of frames have negative correlation
+Stereo width:        0.812 avg, 2.747 max — wide
+Balance:             -0.095 — slightly left
+Mono compatibility:  0.620 avg, 0.117 min — significant mono loss
+
+── Section Boundaries ──
+  Working BPM:     84 (confidence: 0.32)
+  Boundaries:      2
+     0:18.3s  energy+spectral+texture (confidence: 0.85)
+     0:42.1s  energy+harmonic (confidence: 0.67)

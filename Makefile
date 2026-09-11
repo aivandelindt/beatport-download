@@ -3,9 +3,27 @@ VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 LDFLAGS := -trimpath -ldflags="-s -w -X main.version=$(VERSION)"
 DIST    := dist
 
-.PHONY: all macos windows linux docker clean run tidy
+.PHONY: all macos windows linux docker clean run tidy mcp-server audio-analyzer-mcp audio-analyzer-cli stem-splitter
 
 all: macos windows linux
+
+mcp-server:
+	@mkdir -p $(DIST)
+	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o $(DIST)/beatport-download-mcp ./cmd/mcp-server
+	@echo "✓  $(DIST)/beatport-download-mcp"
+
+audio-analyzer-mcp:
+	cargo build --release --manifest-path third_party/audio-analyzer-rs/Cargo.toml --bin mcp-server
+	@echo "✓  third_party/audio-analyzer-rs/target/release/mcp-server"
+
+audio-analyzer-cli:
+	cargo build --release --manifest-path third_party/audio-analyzer-rs/Cargo.toml --bin cli
+	@echo "✓  third_party/audio-analyzer-rs/target/release/cli"
+
+stem-splitter:
+	@mkdir -p dist/tools
+	cargo install stem-splitter-core --version 1.2.0 --locked --root dist/tools --force
+	@echo "✓  dist/tools/bin/stem-splitter"
 
 # ── macOS ──────────────────────────────────────────────────────────────────────
 macos: macos-arm64 macos-amd64

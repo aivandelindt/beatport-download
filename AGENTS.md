@@ -3,20 +3,27 @@
 - Propagate `r.Context()` through Beatport client and HTTP handler methods; load the golang-context skill for Go API work.
 - Capture repeatable feature workflows as project skills under `.claude/skills/`.
 - Only create git commits when explicitly requested.
+- Prefer configuring audio tool binary paths in Settings / `config.yml` over requiring extras on `PATH`.
 
 ## Learned Workspace Facts
 
 - Go 1.22 monolith with embedded `web/` (vanilla HTML/CSS/JS via `go:embed`); no frontend build step.
 - Config at `~/.config/beatportdl-ui/config.yml`; OAuth credentials at `~/.config/beatportdl-ui/beatportdl-credentials.json`.
-- Default HTTP server port is 8989 (falls back to 8990 when 8989 is busy).
-- Makefile supports cross-compilation; no `*_test.go` files yet — verify with `go build ./...`.
+- Default HTTP server port is 8989. A second start on the same port SIGTERMs the previous BeatportDL-UI process, then binds; other programs on the port are left alone (`-port` to pick another). Ctrl+C / SIGTERM shuts down gracefully.
+- Makefile supports cross-compilation plus `audio-analyzer-mcp`, `audio-analyzer-cli`, and `stem-splitter`; verify with `go test ./internal/audio/ -count=1` and `go build ./...`.
 - Beatport API base is `https://api.beatport.com/v4`; OAuth is required for catalog search and downloads.
 - Outbound Beatport HTTP calls are logged via `logging.BeatportAPI` in `internal/beatport/client.go`.
+- Audio tools live in `internal/audio`; analyze backends come from submodule `third_party/audio-analyzer-rs`.
+- Analyzer MCP speaks stdio NDJSON JSON-RPC (rmcp), not Content-Length framing; CLI output is formatted text parsed to JSON.
 
 ## UI
 
-- Top bar navigation (not sidebar): Search | Download | Queue | Fix Tags | Settings.
+- Top bar navigation (not sidebar): Search | Download | Queue | Fix Tags | Audio | Settings.
 - Search is the default view. `.main` and views are full width.
+
+## Audio tools
+
+Workflow: `.claude/skills/audio-tools/SKILL.md`. Analyze via audio-analyzer-rs MCP (NDJSON) or CLI (text → JSON); stems via `stem-splitter` ONNX (CoreML on darwin/arm64; auto/CPU/XNNPACK on Intel); normalize via ffmpeg two-pass loudnorm. API: `GET /api/audio/tools`, `POST /api/audio/analyze|normalize|stems`. Jobs use `kind` = `analyze|stems|normalize|download`.
 
 ## Catalog search
 

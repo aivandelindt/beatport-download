@@ -1,0 +1,14 @@
+Harmonic Analysis: /music/jazz_trio.mp3
+
+Estimated Key: E minor (confidence: 0.538)
+
+Pitch Class Distribution:
+   1. G  0.627 ███████████████
+   2. E  0.561 ██████████████
+   3. C  0.512 ████████████
+   4. D# 0.495 ████████████
+   5. F# 0.487 ████████████
+   6. C# 0.459 ███████████
+
+Tonnetz (avg across 100 frames):
+  Fifths: (0.100, 0.200) | Minor 3rds: (0.300, 0.400) | Major 3rds: (0.500, 0.600)

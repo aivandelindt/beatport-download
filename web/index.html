@@ -39,6 +39,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
           Fix Tags
         </button>
+        <button class="nav-item" data-view="audio" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          Audio
+        </button>
         <button class="nav-item" data-view="settings" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
           Settings
@@ -231,6 +235,94 @@
         </div>
       </section>
 
+      <!-- Audio View -->
+      <section class="view" id="view-audio">
+        <div class="view-header">
+          <h1>Audio</h1>
+          <p class="subtitle">Analyze, split stems, and normalize local audio files</p>
+        </div>
+
+        <div class="fix-card audio-card">
+          <div id="audio-tools-banner" class="audio-tools-banner" style="display:none"></div>
+
+          <div class="fix-dir-row">
+            <div class="input-group">
+              <label>File or Directory</label>
+              <input type="text" id="audio-path-input" class="text-input" placeholder="Leave empty to use output folder from settings" />
+            </div>
+          </div>
+
+          <div class="audio-tabs" role="tablist">
+            <button type="button" class="audio-tab active" data-audio-panel="analyze">Analyze</button>
+            <button type="button" class="audio-tab" data-audio-panel="stems">Stems</button>
+            <button type="button" class="audio-tab" data-audio-panel="normalize">Normalize</button>
+          </div>
+
+          <div class="audio-panel active" id="audio-panel-analyze">
+            <div class="audio-controls-row">
+              <div class="field">
+                <label>Analysis kind</label>
+                <select id="audio-analyze-kind" class="select-input">
+                  <option value="full_analysis" selected>Full analysis</option>
+                  <option value="audio_info">Audio info</option>
+                  <option value="spectral_features">Spectral features</option>
+                  <option value="harmonic_analysis">Harmonic analysis</option>
+                  <option value="rhythm_analysis">Rhythm analysis</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Backend</label>
+                <select id="audio-analyze-backend" class="select-input">
+                  <option value="auto" selected>Auto</option>
+                  <option value="mcp">MCP</option>
+                  <option value="cli">CLI</option>
+                </select>
+              </div>
+              <button class="btn-fix" id="btn-audio-analyze" type="button">Analyze</button>
+            </div>
+            <div class="analysis-card" id="audio-analysis-results" style="display:none">
+              <div class="analysis-summary" id="audio-analysis-summary"></div>
+              <details>
+                <summary>Raw JSON</summary>
+                <pre id="audio-analysis-json"></pre>
+              </details>
+            </div>
+          </div>
+
+          <div class="audio-panel" id="audio-panel-stems">
+            <p class="field-hint">Splits into vocals / drums / bass / other via ONNX HT-Demucs. First run downloads ~200MB model weights. Apple Silicon defaults to CoreML; Intel uses CPU/XNNPACK.</p>
+            <div class="audio-controls-row">
+              <div class="field">
+                <label>Provider</label>
+                <select id="audio-stem-provider" class="select-input">
+                  <option value="auto" selected>Auto</option>
+                  <option value="coreml">CoreML</option>
+                  <option value="xnnpack">XNNPACK</option>
+                  <option value="cpu">CPU</option>
+                </select>
+              </div>
+              <button class="btn-fix" id="btn-audio-stems" type="button">Split stems</button>
+            </div>
+          </div>
+
+          <div class="audio-panel" id="audio-panel-normalize">
+            <p class="field-hint">Two-pass EBU R128 loudnorm via ffmpeg. Writes <code>*_normalized</code> sidecars unless overwrite is enabled.</p>
+            <div class="audio-controls-row">
+              <div class="field">
+                <label>Target LUFS</label>
+                <input type="number" id="audio-normalize-lufs" class="text-input" step="0.1" value="-14" />
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="audio-normalize-overwrite" />
+                <span class="toggle-slider"></span>
+                Overwrite originals
+              </label>
+              <button class="btn-fix" id="btn-audio-normalize" type="button">Normalize</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Settings View -->
       <section class="view" id="view-settings">
         <div class="view-header">
@@ -336,6 +428,62 @@
               <div class="field">
                 <label>Charts</label>
                 <input type="number" name="search_limit_charts" class="text-input" min="1" max="100" />
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h2>Audio tools</h2>
+            <p class="field-hint">Optional paths to analyzer and stem-splitter binaries. Leave blank to auto-detect.</p>
+            <div class="field-row">
+              <div class="field">
+                <label>Analyzer backend</label>
+                <select name="audio_analyzer_backend" class="select-input">
+                  <option value="auto">Auto</option>
+                  <option value="mcp">MCP</option>
+                  <option value="cli">CLI</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Stem provider</label>
+                <select name="stem_provider" class="select-input">
+                  <option value="auto">Auto</option>
+                  <option value="coreml">CoreML</option>
+                  <option value="xnnpack">XNNPACK</option>
+                  <option value="cpu">CPU</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field full">
+                <label>Analyzer MCP path</label>
+                <input type="text" name="audio_analyzer_mcp_path" class="text-input" placeholder="third_party/.../mcp-server" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field full">
+                <label>Analyzer CLI path</label>
+                <input type="text" name="audio_analyzer_cli_path" class="text-input" placeholder="third_party/.../cli" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field full">
+                <label>Stem splitter path</label>
+                <input type="text" name="stem_splitter_path" class="text-input" placeholder="dist/tools/bin/stem-splitter" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Normalize target LUFS</label>
+                <input type="number" name="normalize_target_lufs" class="text-input" step="0.1" />
+              </div>
+              <div class="field">
+                <label>True peak (dBTP)</label>
+                <input type="number" name="normalize_true_peak" class="text-input" step="0.1" />
+              </div>
+              <div class="field">
+                <label>LRA</label>
+                <input type="number" name="normalize_lra" class="text-input" step="0.1" />
               </div>
             </div>
           </div>

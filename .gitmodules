@@ -1,0 +1,3 @@
+[submodule "third_party/audio-analyzer-rs"]
+	path = third_party/audio-analyzer-rs
+	url = https://github.com/JuzzyDee/audio-analyzer-rs.git

@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "audio-analyzer": {
+      "command": "/Users/dvandelindt/Projects/beatport-download/third_party/audio-analyzer-rs/target/release/mcp-server"
+    }
+  }
+}

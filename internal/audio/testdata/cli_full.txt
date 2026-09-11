@@ -1,0 +1,73 @@
+File:        /music/jazz_trio.mp3
+Sample rate: 48000 Hz
+Samples:     2909952
+Duration:    60.62 seconds
+Decoded in:  120ms
+
+Computing spectrogram...
+  Frames:     5674
+  Freq bins:  1025
+  Duration:   60.62 sec
+  Computed in: 50ms
+
+Computing spectral features...
+  Spectral Centroid:   avg 2812 Hz (brightness)
+  Spectral Bandwidth:  avg 3933 Hz (richness)
+  Spectral Rolloff:    avg 6489 Hz (energy concentration)
+  Spectral Flatness:   avg 0.0824 (0=tonal, 1=noisy)
+  Frequency Band Energy:
+    sub_bass     (   20–   60 Hz): 0.007803 ██
+    bass         (   60–  250 Hz): 0.013043 ████
+    low_mid      (  250–  500 Hz): 0.004906 █
+    mid          (  500– 2000 Hz): 0.002165
+    upper_mid    ( 2000– 4000 Hz): 0.000203
+    presence     ( 4000– 6000 Hz): 0.000166
+    brilliance   ( 6000–20000 Hz): 0.000089
+  Spectral Contrast (peak–valley):
+    sub_bass     (   20–   60 Hz):  10.4 dB █████
+    bass         (   60–  250 Hz):  20.4 dB ██████████
+    low_mid      (  250–  500 Hz):  26.0 dB █████████████
+    mid          (  500– 2000 Hz):  30.9 dB ███████████████
+    upper_mid    ( 2000– 4000 Hz):  19.4 dB █████████
+    presence     ( 4000– 6000 Hz):  16.6 dB ████████
+    brilliance   ( 6000–20000 Hz):  55.2 dB ████████████████████████████
+  Computed in:         80ms
+
+Computing harmonic analysis...
+Estimated Key: E minor (confidence: 0.538)
+Pitch Class Distribution:
+   1. G  0.627 ███████████████
+   2. E  0.561 ██████████████
+   3. C  0.512 ████████████
+
+Computing rhythm analysis...
+Estimated Tempo: 84.0 BPM (confidence: 0.316)
+Detected Beats: 69
+Mean tempo: 84.3 BPM | Median: 84.0 BPM
+Stability: 0.951 (0=erratic, 1=metronomic)
+
+── Percussive Character ──
+Percussive ratio:    0.277 — harmony-dominated
+Onset density:       7.0/sec — very dense
+Peak attack sharp:   1.000
+
+── Dynamic Range ──
+Peak:            -0.44 dBFS
+Crest factor:    16.2 dB — very dynamic
+Loudness range:  76.4 dB — very dynamic
+
+── Loudness (EBU R128) ──
+Integrated:      -12.1 LUFS
+True peak:       0.0 dBTP
+Loudness range:  3.7 LU
+
+── Stereo Field ──
+Phase correlation:   0.257 avg, -0.822 min — some phase issues
+Stereo width:        0.812 avg, 2.747 max — wide
+Balance:             -0.095 — slightly left
+Mono compatibility:  0.620 avg, 0.117 min — significant mono loss
+
+── Section Boundaries ──
+  Boundaries:      2
+     0:18.3s  energy+spectral+texture (confidence: 0.85)
+     0:42.1s  energy+harmonic (confidence: 0.67)

@@ -11,21 +11,22 @@ Go 1.22 monolith with embedded vanilla `web/` (HTML/CSS/JS via `go:embed`). No f
 
 - Config: `~/.config/beatportdl-ui/config.yml`
 - OAuth credentials: `~/.config/beatportdl-ui/beatportdl-credentials.json`
-- Default port: **8989** (falls back to 8990 if busy)
+- Default port: **8989** (second start takes over the previous instance; graceful SIGINT/SIGTERM shutdown)
 - Beatport API: `https://api.beatport.com/v4`
 
 ## Verify changes
 
 ```bash
 go build ./...
+go test ./internal/audio/ -count=1
 ```
 
-No `*_test.go` files yet. Do not commit unless the user asks.
+Do not commit unless the user asks.
 
 ## Feature skills
 
-Repeatable workflows live in `.claude/skills/`. For catalog search, read `.claude/skills/beatport-catalog-search/SKILL.md` before changing search backend or UI.
+Repeatable workflows live in `.claude/skills/`. For catalog search, read `.claude/skills/beatport-catalog-search/SKILL.md` before changing search backend or UI. For analyze/stems/normalize, read `.claude/skills/audio-tools/SKILL.md`.
 
 ## UI navigation
 
-Top bar (not sidebar): Search | Download | Queue | Fix Tags | Settings. Search is the default view.
+Top bar (not sidebar): Search | Download | Queue | Fix Tags | Audio | Settings. Search is the default view.

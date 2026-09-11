@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"beatportdl-ui/internal/audio"
 	"beatportdl-ui/internal/beatport"
 	"beatportdl-ui/internal/config"
 
@@ -40,12 +41,16 @@ type Job struct {
 	URL       string
 	Name      string // resolved collection name (playlist/release/artist)
 	Status    string
+	Kind      string // download (default), analyze, stems, normalize
+	Message   string
 	Total     int
 	Completed int
 	Failed    int
 	Tracks    []TrackSummary
 	OutputDir string
 	Files     []string
+	Analysis  []audio.Analysis
+	StemFiles []string
 	filesMu   sync.Mutex
 	CreatedAt time.Time
 }
@@ -82,6 +87,7 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		respondErr(w, 400, "invalid JSON: "+err.Error())
 		return
 	}
+	newCfg.ApplyDefaults()
 	s.cfgMu.Lock()
 	s.cfg = &newCfg
 	s.cfgMu.Unlock()
@@ -1091,6 +1097,7 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 	job := &Job{
 		ID:        jobID,
 		URL:       req.URL,
+		Kind:      "download",
 		Status:    "pending",
 		CreatedAt: time.Now(),
 	}
@@ -1123,7 +1130,7 @@ func (s *Server) handleListJobs(w http.ResponseWriter, r *http.Request) {
 	jobs := make([]JobPayload, 0, len(s.jobs))
 	for _, j := range s.jobs {
 		j.filesMu.Lock()
-		hasFiles := len(j.Files) > 0
+		hasFiles := len(j.Files) > 0 || len(j.StemFiles) > 0
 		j.filesMu.Unlock()
 
 		jobs = append(jobs, JobPayload{
@@ -1131,11 +1138,15 @@ func (s *Server) handleListJobs(w http.ResponseWriter, r *http.Request) {
 			URL:       j.URL,
 			Name:      j.Name,
 			Status:    j.Status,
+			Kind:      jobKind(j),
+			KindLabel: jobKindLabel(j),
 			Total:     j.Total,
 			Completed: j.Completed,
 			Failed:    j.Failed,
 			Tracks:    j.Tracks,
+			Message:   j.Message,
 			HasFiles:  hasFiles,
+			Analysis:  analysisPayload(j),
 		})
 	}
 	respond(w, 200, jobs)
@@ -1630,7 +1641,7 @@ func (s *Server) failJob(job *Job, msg string) {
 
 func (s *Server) broadcastJob(job *Job) {
 	job.filesMu.Lock()
-	hasFiles := len(job.Files) > 0
+	hasFiles := len(job.Files) > 0 || len(job.StemFiles) > 0
 	job.filesMu.Unlock()
 
 	s.hub.Broadcast(WSMessage{
@@ -1640,13 +1651,44 @@ func (s *Server) broadcastJob(job *Job) {
 			URL:       job.URL,
 			Name:      job.Name,
 			Status:    job.Status,
+			Kind:      jobKind(job),
+			KindLabel: jobKindLabel(job),
 			Total:     job.Total,
 			Completed: job.Completed,
 			Failed:    job.Failed,
 			Tracks:    job.Tracks,
+			Message:   job.Message,
 			HasFiles:  hasFiles,
+			Analysis:  analysisPayload(job),
 		},
 	})
+}
+
+func jobKind(job *Job) string {
+	if job.Kind == "" {
+		return "download"
+	}
+	return job.Kind
+}
+
+func jobKindLabel(job *Job) string {
+	switch jobKind(job) {
+	case "analyze":
+		return "Analyze"
+	case "stems":
+		return "Stems"
+	case "normalize":
+		return "Normalize"
+	default:
+		return "Download"
+	}
+}
+
+func analysisPayload(job *Job) interface{} {
+	if len(job.Analysis) == 0 {
+		return nil
+	}
+	return job.Analysis
 }
 
 func credentialsDir() string {

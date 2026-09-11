@@ -10,13 +10,15 @@ Go 1.22 monolith with an embedded vanilla HTML/CSS/JS frontend — no separate f
 - **Download** — paste Beatport URLs (track, release, playlist, chart, artist)
 - **Queue** — job progress over WebSocket, ZIP export
 - **Fix Tags** — batch metadata repair with ffmpeg
-- **Settings** — credentials, output directory, quality, workers
+- **Audio** — analyze local files, split stems (HT-Demucs ONNX), loudness-normalize
+- **Settings** — credentials, output directory, quality, workers, audio tool paths
 
 ## Requirements
 
 - Go 1.22+
-- [ffmpeg](https://ffmpeg.org/) (metadata embedding)
+- [ffmpeg](https://ffmpeg.org/) (metadata embedding and normalize)
 - Beatport subscription credentials
+- Optional (Audio tab): Rust/`cargo` to build analyzer + stem-splitter binaries
 
 ## Quick start
 
@@ -25,6 +27,8 @@ go run .                    # opens browser on http://localhost:8989
 go run . -port 8990         # alternate port
 go run . -no-open           # don't open browser
 ```
+
+Starting again on the same port stops the previous BeatportDL-UI process, then binds. Ctrl+C shuts the server down gracefully. Other programs occupying the port are left alone (`-port` to pick another).
 
 Config: `~/.config/beatportdl-ui/config.yml`  
 OAuth token cache: `~/.config/beatportdl-ui/beatportdl-credentials.json`
@@ -79,24 +83,87 @@ POST /api/download   { "url": "...", "quality": "lossless" }
 ```
 ├── main.go
 ├── internal/
+│   ├── audio/        # analyze / stems / normalize
 │   ├── beatport/     # API client, types, metadata
 │   ├── config/       # YAML config
 │   ├── logging/      # slog + HTTP middleware
 │   └── server/       # routes, handlers, jobs, WebSocket
+├── third_party/
+│   └── audio-analyzer-rs/  # submodule (MCP + CLI)
 └── web/              # embedded UI (go:embed)
     ├── index.html
     ├── css/style.css
     └── js/app.js
 ```
 
+## Audio tools
+
+The **Audio** tab analyzes, stem-splits, and normalizes files under a chosen path (or the settings output directory). Progress appears in **Queue**.
+
+| Panel | Backend |
+|-------|---------|
+| Analyze | `audio-analyzer-rs` MCP (`mcp-server`) or CLI (`cli`); formatted text parsed to JSON |
+| Stems | `stem-splitter` (crate `stem-splitter-core` 1.2.0 ONNX). Apple Silicon defaults to CoreML; Intel uses CPU/XNNPACK |
+| Normalize | ffmpeg two-pass EBU R128 `loudnorm` (sidecar `*_normalized` by default) |
+
+```bash
+make audio-analyzer-mcp   # third_party/.../target/release/mcp-server
+make audio-analyzer-cli   # third_party/.../target/release/cli
+make stem-splitter        # dist/tools/bin/stem-splitter
+```
+
+The UI shells out to these local binaries. Cursor’s `.cursor/mcp.json` audio-analyzer entry remains a separate local stdio MCP for agents (not Runlayer-managed); the web UI does not go through Cursor MCP.
+
 ## Build
 
 ```bash
 go build ./...
-make build            # cross-compile via Makefile
+go test ./internal/audio/ -count=1
+make macos            # cross-compile via Makefile
 ```
 
 Docker: `docker compose up` (port 8989, includes ffmpeg).
+
+## MCP server
+
+This repo includes two local stdio MCP servers. Neither is Runlayer-managed.
+
+### Beatport catalog
+
+```bash
+go run ./cmd/mcp-server
+# or: make mcp-server
+```
+
+Tools: `beatport_test_auth`, `beatport_parse_url`, `beatport_get_genres`, `beatport_search`, `beatport_download_url`.
+
+Uses the same config and credentials as the UI app:
+
+- Config: `~/.config/beatportdl-ui/config.yml`
+- OAuth cache: `~/.config/beatportdl-ui/beatportdl-credentials.json`
+
+### Audio analyzer
+
+Submodule at `third_party/audio-analyzer-rs`. Build the binary, then Cursor loads it from `.cursor/mcp.json`:
+
+```bash
+make audio-analyzer-mcp
+make audio-analyzer-cli   # also used by the Audio tab CLI backend
+```
+
+Tools: `audio_info`, `spectral_features`, `harmonic_analysis`, `rhythm_analysis`, `full_analysis`, `compare`. Pass absolute local file paths.
+
+Project MCP client config (`.cursor/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "audio-analyzer": {
+      "command": "/absolute/path/to/beatport-download/third_party/audio-analyzer-rs/target/release/mcp-server"
+    }
+  }
+}
+```
 
 ## API routes
 
@@ -111,8 +178,13 @@ Docker: `docker compose up` (port 8989, includes ffmpeg).
 | DELETE | `/api/jobs/{id}` | Remove job |
 | GET | `/api/jobs/{id}/zip` | Download ZIP |
 | POST | `/api/fix` | Fix tags in directory |
+| GET | `/api/audio/tools` | Analyzer / stem-splitter / ffmpeg presence |
+| POST | `/api/audio/analyze` | Queue analysis job |
+| POST | `/api/audio/normalize` | Queue loudnorm job |
+| POST | `/api/audio/stems` | Queue stem-split job |
 | GET | `/api/ws` | WebSocket progress |
 
 ## Further reading
 
-Catalog search workflow for contributors: `.claude/skills/beatport-catalog-search/SKILL.md`
+- Catalog search: `.claude/skills/beatport-catalog-search/SKILL.md`
+- Audio tools: `.claude/skills/audio-tools/SKILL.md`

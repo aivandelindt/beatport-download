@@ -1,0 +1,47 @@
+Spectral Analysis: /music/jazz_trio.mp3
+Duration: 60.62 sec | Frames: 5674 | Freq bins: 1025
+
+Centroid (brightness):     avg 2812 Hz — moderate
+Bandwidth (richness):      avg 3933 Hz — wide/complex
+Rolloff (energy focus):    avg 6489 Hz
+Flatness (tonality):       avg 0.0824 — strongly tonal
+RMS Energy (loudness):     avg 0.1160
+Zero Crossing Rate:        avg 0.0402 — mixed
+MFCCs (timbre):            MFCC-0: -141.30, MFCC-1: 13.70, MFCC-2: 0.90, MFCC-3: 7.70, MFCC-4: -2.50, MFCC-5: 3.10, MFCC-6: -1.70, MFCC-7: 2.30, MFCC-8: -0.90, MFCC-9: 1.00, MFCC-10: -0.50, MFCC-11: 0.90, MFCC-12: 0.60
+
+Frequency Band Energy:
+  sub_bass (20–60 Hz): 0.007803
+  bass (60–250 Hz): 0.013043
+  low_mid (250–500 Hz): 0.004906
+  mid (500–2k Hz): 0.002165
+  upper_mid (2k–4k Hz): 0.000203
+  presence (4k–6k Hz): 0.000166
+  brilliance (6k–20k Hz): 0.000089
+
+Spectral Contrast (peak–valley):
+  sub_bass (20–60 Hz): 10.4 dB
+  bass (60–250 Hz): 20.4 dB
+  low_mid (250–500 Hz): 26.0 dB
+  mid (500–2k Hz): 30.9 dB
+  upper_mid (2k–4k Hz): 19.4 dB
+  presence (4k–6k Hz): 16.6 dB
+  brilliance (6k–20k Hz): 55.2 dB
+
+── Dynamic Range ──
+Peak:            -0.44 dBFS
+Crest factor:    16.2 dB — very dynamic
+Loudness range:  76.4 dB — very dynamic
+Quiet sections:  -87.5 dBFS | Loud sections: -11.1 dBFS
+
+── Loudness (EBU R128) ──
+Integrated:      -12.1 LUFS
+True peak:       0.0 dBTP
+Loudness range:  3.7 LU
+Spotify (-14):   turned DOWN 1.9 dB | Apple (-16): turned DOWN 3.9 dB | YouTube (-14): turned DOWN 1.9 dB
+
+── Stereo Field ──
+Phase correlation:   0.257 avg, -0.822 min — some phase issues
+Phase warnings:      20.6% of frames have negative correlation
+Stereo width:        0.812 avg, 2.747 max — wide
+Balance:             -0.095 — slightly left
+Mono compatibility:  0.620 avg, 0.117 min — significant mono loss

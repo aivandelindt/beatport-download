@@ -19,6 +19,10 @@ func (s *Server) Mount(mux *http.ServeMux, webFS embed.FS) {
 	mux.HandleFunc("DELETE /api/jobs/{id}", s.handleDeleteJob)
 	mux.HandleFunc("GET /api/jobs/{id}/zip", s.handleJobZip)
 	mux.HandleFunc("POST /api/fix", s.handleFix)
+	mux.HandleFunc("GET /api/audio/tools", s.handleAudioTools)
+	mux.HandleFunc("POST /api/audio/analyze", s.handleAudioAnalyze)
+	mux.HandleFunc("POST /api/audio/normalize", s.handleAudioNormalize)
+	mux.HandleFunc("POST /api/audio/stems", s.handleAudioStems)
 	mux.HandleFunc("GET /api/ws", s.handleWS)
 
 	// Static web UI

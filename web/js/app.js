@@ -1051,6 +1051,9 @@ function updateJob(payload) {
   renderQueue();
   updateQueueBadge();
   renderRecent();
+  if (payload.kind === 'analyze' && payload.analysis) {
+    renderAnalysisResults(payload);
+  }
 }
 
 function updateTrackProgress(payload) {
@@ -1082,7 +1085,7 @@ function renderQueue() {
   if (jobs.length === 0) {
     list.innerHTML = `<div class="empty-state">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      <p>No downloads yet</p>
+      <p>No jobs yet</p>
     </div>`;
     return;
   }
@@ -1178,6 +1181,7 @@ function updateJobCard(card, job) {
 
 function jobCardHTML(job) {
   const pct = jobProgress(job);
+  const kind = job.kind_label || kindLabel(job.kind);
   const tracksHTML = (job.tracks || []).map(t => `
     <div class="track-row" id="track-${job.job_id}-${t.id}">
       ${trackRowHTML(job.job_id, t)}
@@ -1187,7 +1191,7 @@ function jobCardHTML(job) {
     <div class="job-header">
       <div class="job-status-icon ${job.status}">${statusIcon(job.status)}</div>
       <div class="job-info">
-        <div class="job-url">${escHtml(job.name || job.url)}</div>
+        <div class="job-url"><span class="job-kind-chip">${escHtml(kind)}</span> ${escHtml(job.name || job.url)}</div>
         <div class="job-sub">${job.name ? escHtml(job.url) + ' · ' : ''}${jobSubText(job)}</div>
       </div>
       <div class="job-actions">
@@ -1202,6 +1206,15 @@ function jobCardHTML(job) {
     </div>
     <div class="job-progress-bar"><div class="job-progress-fill" style="width:${pct}%"></div></div>
     <div class="job-tracks">${tracksHTML}</div>`;
+}
+
+function kindLabel(kind) {
+  switch (kind) {
+    case 'analyze': return 'Analyze';
+    case 'stems': return 'Stems';
+    case 'normalize': return 'Normalize';
+    default: return 'Download';
+  }
 }
 
 function trackRowHTML(jobID, t) {
@@ -1227,11 +1240,14 @@ function statusIcon(status) {
 }
 
 function jobSubText(job) {
+  const kind = job.kind || 'download';
+  const verb = kind === 'analyze' ? 'Analyzing' : kind === 'stems' ? 'Splitting' : kind === 'normalize' ? 'Normalizing' : 'Downloading';
+  const doneVerb = kind === 'download' ? 'downloaded' : 'done';
   if (job.status === 'pending')  return 'Waiting…';
-  if (job.status === 'running')  return `Downloading… ${job.completed + job.failed} / ${job.total || '?'} done`;
-  if (job.status === 'done')     return `${job.completed} downloaded${job.failed ? `, ${job.failed} failed` : ''}`;
+  if (job.status === 'running')  return `${verb}… ${job.completed + job.failed} / ${job.total || '?'} done`;
+  if (job.status === 'done')     return `${job.completed} ${doneVerb}${job.failed ? `, ${job.failed} failed` : ''}`;
   if (job.status === 'error') {
-    const msg = job.tracks?.[0]?.message;
+    const msg = job.message || job.tracks?.[0]?.message;
     return msg ? `Error: ${msg}` : 'Failed';
   }
   return job.status;
@@ -1368,6 +1384,134 @@ function startPolling() {
   }, 3000);
 }
 
+// ─── Audio tools ──────────────────────────────────────────────────────────────
+function initAudio() {
+  $$('.audio-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const panel = tab.dataset.audioPanel;
+      $$('.audio-tab').forEach(t => t.classList.toggle('active', t === tab));
+      $$('.audio-panel').forEach(p => p.classList.toggle('active', p.id === `audio-panel-${panel}`));
+    });
+  });
+
+  $('#btn-audio-analyze')?.addEventListener('click', () => runAudioJob('analyze'));
+  $('#btn-audio-stems')?.addEventListener('click', () => runAudioJob('stems'));
+  $('#btn-audio-normalize')?.addEventListener('click', () => runAudioJob('normalize'));
+
+  loadAudioToolsStatus();
+  syncAudioControlsFromSettings();
+}
+
+function syncAudioControlsFromSettings() {
+  const s = state.settings;
+  if (!s) return;
+  const backend = $('#audio-analyze-backend');
+  if (backend && s.audio_analyzer_backend) backend.value = s.audio_analyzer_backend;
+  const provider = $('#audio-stem-provider');
+  if (provider && s.stem_provider) provider.value = s.stem_provider;
+  const lufs = $('#audio-normalize-lufs');
+  if (lufs && s.normalize_target_lufs != null) lufs.value = s.normalize_target_lufs;
+}
+
+async function loadAudioToolsStatus() {
+  const banner = $('#audio-tools-banner');
+  if (!banner) return;
+  try {
+    const res = await fetch('/api/audio/tools');
+    if (!res.ok) return;
+    const data = await res.json();
+    const msgs = [];
+    if (!data.analyzer_mcp && !data.analyzer_cli) {
+      msgs.push('Analyzer binaries not found. Run <code>make audio-analyzer-mcp && make audio-analyzer-cli</code>.');
+    }
+    if (!data.stem_splitter) {
+      msgs.push('Stem splitter not found. Run <code>make stem-splitter</code>.');
+    }
+    if (!data.ffmpeg) {
+      msgs.push('ffmpeg not found on PATH (required for normalize and tags).');
+    }
+    if (msgs.length === 0) {
+      banner.style.display = 'none';
+      banner.innerHTML = '';
+      return;
+    }
+    banner.style.display = '';
+    banner.innerHTML = msgs.map(m => `<div class="audio-tools-warn">${m}</div>`).join('');
+  } catch (_) {}
+}
+
+function audioPathValue() {
+  return ($('#audio-path-input')?.value || '').trim();
+}
+
+async function runAudioJob(kind) {
+  const path = audioPathValue();
+  let url = '';
+  let body = { path };
+  let btn;
+  if (kind === 'analyze') {
+    url = '/api/audio/analyze';
+    body.kind = $('#audio-analyze-kind')?.value || 'full_analysis';
+    body.backend = $('#audio-analyze-backend')?.value || 'auto';
+    btn = $('#btn-audio-analyze');
+  } else if (kind === 'stems') {
+    url = '/api/audio/stems';
+    body.provider = $('#audio-stem-provider')?.value || 'auto';
+    btn = $('#btn-audio-stems');
+  } else {
+    url = '/api/audio/normalize';
+    body.overwrite = !!$('#audio-normalize-overwrite')?.checked;
+    const lufs = Number($('#audio-normalize-lufs')?.value);
+    if (!Number.isNaN(lufs)) body.target_lufs = lufs;
+    btn = $('#btn-audio-normalize');
+  }
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast(data.error || 'Request failed', 'error');
+      return;
+    }
+    toast(`${kindLabel(kind)} job queued`, 'ok');
+    // Switch to queue so progress is visible
+    document.querySelector('.nav-item[data-view="queue"]')?.click();
+  } catch (e) {
+    toast(e.message || 'Request failed', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function renderAnalysisResults(job) {
+  const wrap = $('#audio-analysis-results');
+  const summary = $('#audio-analysis-summary');
+  const jsonEl = $('#audio-analysis-json');
+  if (!wrap || !summary || !jsonEl) return;
+  const list = Array.isArray(job.analysis) ? job.analysis : [];
+  if (list.length === 0) return;
+  wrap.style.display = '';
+  const a = list[list.length - 1];
+  const key = a.harmonic_analysis ? `${a.harmonic_analysis.key || ''} ${a.harmonic_analysis.mode || ''}`.trim() : '—';
+  const bpm = a.rhythm_analysis?.tempo_bpm != null ? a.rhythm_analysis.tempo_bpm : '—';
+  const lufs = a.spectral_features?.lufs_integrated != null ? a.spectral_features.lufs_integrated : '—';
+  const dur = a.audio_info?.duration_sec != null ? a.audio_info.duration_sec.toFixed(2) + 's' : '—';
+  summary.innerHTML = `
+    <div class="analysis-metrics">
+      <div><span class="analysis-metric-label">File</span><span>${escHtml(a.path || '')}</span></div>
+      <div><span class="analysis-metric-label">Key</span><span>${escHtml(String(key))}</span></div>
+      <div><span class="analysis-metric-label">BPM</span><span>${escHtml(String(bpm))}</span></div>
+      <div><span class="analysis-metric-label">LUFS</span><span>${escHtml(String(lufs))}</span></div>
+      <div><span class="analysis-metric-label">Duration</span><span>${escHtml(String(dur))}</span></div>
+      <div><span class="analysis-metric-label">Source</span><span>${escHtml(a.source || '')}</span></div>
+    </div>`;
+  jsonEl.textContent = JSON.stringify(list, null, 2);
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   initNav();
@@ -1375,8 +1519,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initDownload();
   initSearch();
   initFix();
+  initAudio();
   connectWS();
-  loadSettings();
+  loadSettings().then(() => syncAudioControlsFromSettings());
   loadJobs();
   startPolling();
 });

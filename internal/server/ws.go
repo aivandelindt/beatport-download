@@ -71,12 +71,15 @@ type JobPayload struct {
 	URL       string         `json:"url"`
 	Name      string         `json:"name"`      // resolved playlist/release/artist name
 	Status    string         `json:"status"`    // pending, running, done, error
+	Kind      string         `json:"kind,omitempty"`
+	KindLabel string         `json:"kind_label,omitempty"`
 	Total     int            `json:"total"`
 	Completed int            `json:"completed"`
 	Failed    int            `json:"failed"`
 	Tracks    []TrackSummary `json:"tracks,omitempty"`
 	Message   string         `json:"message,omitempty"`
 	HasFiles  bool           `json:"has_files"`
+	Analysis  interface{}    `json:"analysis,omitempty"`
 }
 
 type TrackSummary struct {

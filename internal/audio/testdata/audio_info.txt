@@ -1,0 +1,4 @@
+File: /music/jazz_trio.mp3
+Sample rate: 48000 Hz
+Samples: 2909952
+Duration: 60.62 seconds
