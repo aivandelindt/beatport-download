@@ -63,11 +63,13 @@ Fourth Audio tab: browse persisted analysis results in a searchable table.
 | BPM range | `bpm_min`, `bpm_max` |
 | Pagination | `limit` (default 50), `offset` |
 
-Table columns: path (basename), key, BPM, LUFS, kind, analyzed_at. Row click opens detail (summary metrics + full JSON). Actions: **Delete** (remove row) and **Re-analyze** (`POST /api/audio/analyze` with `force: true`).
+Table columns: path (basename), key, BPM, LUFS, kind, analyzed_at. Row click opens an **inspector**: play the mix, mix waveform, optional stem waveforms (when `<basename>_stems/` exists on disk), summary metrics, and full JSON. Actions: **Delete** (remove row) and **Re-analyze** (`POST /api/audio/analyze` with `force: true`).
+
+Waveform peaks are computed server-side with **ffmpeg** (same dependency as normalize/tags). Playback streams via id-scoped routes — only the analysis record’s file and its conventional stem WAVs. If the mix file is missing on disk, analysis JSON still shows and the player is hidden.
 
 ### Stems
 
-Runs `stem-splitter` (crate `stem-splitter-core` 1.2.0) to write four WAV stems: vocals, drums, bass, other under `<basename>_stems/`.
+Runs `stem-splitter` (crate `stem-splitter-core` 1.2.0) to write four WAV stems under `<basename>_stems/`: `<basename>_vocals.wav`, `_drums.wav`, `_bass.wav`, `_other.wav` (plain `vocals.wav` etc. also accepted by the Library inspector).
 
 | Provider | Typical use |
 |----------|-------------|
@@ -135,7 +137,10 @@ Configured path → next to the running executable → repo-relative `third_part
 | POST | `/api/audio/normalize` | `{ "path", "overwrite", "target_lufs?" }` |
 | POST | `/api/audio/stems` | `{ "path", "provider" }` |
 | GET | `/api/audio/library` | `?q=&key=&bpm_min=&bpm_max=&limit=&offset=` → `{ "items", "total" }`; `503` if store unavailable |
-| GET | `/api/audio/library/{id}` | Full row + `"analysis"` payload; `404` if missing |
+| GET | `/api/audio/library/{id}` | Full row + `"analysis"` payload; `"stems"` map when on disk; `"file_missing"`; `404` if missing |
+| GET | `/api/audio/library/{id}/waveforms` | Mix (+ stem) peak arrays for canvas; needs ffmpeg; `404` if mix gone; `503` if no ffmpeg/store |
+| GET | `/api/audio/library/{id}/file` | Stream mix audio (`Accept-Ranges`) |
+| GET | `/api/audio/library/{id}/stems/{stem}` | Stream `vocals` \| `drums` \| `bass` \| `other` WAV |
 | DELETE | `/api/audio/library/{id}` | Remove row; `{ "status": "deleted" }` |
 
 Empty `path` uses `output_dir` from settings.

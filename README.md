@@ -105,7 +105,7 @@ The **Audio** tab analyzes, stem-splits, and normalizes files under a chosen pat
 | Analyze | `audio-analyzer-rs` MCP (`mcp-server`) or CLI (`cli`); formatted text parsed to JSON; cache reuse unless **Force re-analyze** |
 | Stems | `stem-splitter` (crate `stem-splitter-core` 1.2.0 ONNX). Apple Silicon defaults to CoreML; Intel uses CPU/XNNPACK |
 | Normalize | ffmpeg two-pass EBU R128 `loudnorm` (sidecar `*_normalized` by default) |
-| Library | Searchable table of persisted analyses (path, key, BPM, LUFS); detail view, delete, re-analyze |
+| Library | Searchable analyses; inspector with play, mix/stem waveforms (ffmpeg peaks), metrics, delete, re-analyze |
 
 ```bash
 make audio-analyzer-mcp   # third_party/.../target/release/mcp-server
@@ -186,7 +186,10 @@ Project MCP client config (`.cursor/mcp.json`):
 | POST | `/api/audio/normalize` | Queue loudnorm job |
 | POST | `/api/audio/stems` | Queue stem-split job |
 | GET | `/api/audio/library` | List persisted analyses (`q`, `key`, `bpm_min`, `bpm_max`, pagination) |
-| GET | `/api/audio/library/{id}` | Single analysis with full payload |
+| GET | `/api/audio/library/{id}` | Single analysis + stems-on-disk map + `file_missing` |
+| GET | `/api/audio/library/{id}/waveforms` | Mix (+ stem) peaks for canvas (needs ffmpeg) |
+| GET | `/api/audio/library/{id}/file` | Stream mix audio |
+| GET | `/api/audio/library/{id}/stems/{stem}` | Stream stem WAV (`vocals`\|`drums`\|`bass`\|`other`) |
 | DELETE | `/api/audio/library/{id}` | Remove analysis row |
 | GET | `/api/ws` | WebSocket progress |
 

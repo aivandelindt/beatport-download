@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"beatportdl-ui/internal/audio"
@@ -506,22 +507,8 @@ func (s *Server) handleAudioLibraryList(w http.ResponseWriter, r *http.Request) 
 
 // GET /api/audio/library/{id}
 func (s *Server) handleAudioLibraryGet(w http.ResponseWriter, r *http.Request) {
-	if s.analysisStore == nil {
-		respondErr(w, 503, "analysis store unavailable")
-		return
-	}
-	id, err := parseLibraryID(r.PathValue("id"))
-	if err != nil {
-		respondErr(w, 400, "invalid id")
-		return
-	}
-	rec, err := s.analysisStore.GetByID(r.Context(), id)
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		respondErr(w, 404, "not found")
-		return
-	}
-	if err != nil {
-		respondErr(w, 500, err.Error())
+	rec, ok := s.loadLibraryRecord(w, r)
+	if !ok {
 		return
 	}
 	var analysis audio.Analysis
@@ -531,7 +518,11 @@ func (s *Server) handleAudioLibraryGet(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	respond(w, 200, map[string]interface{}{
+	fileMissing := false
+	if _, err := os.Stat(rec.Path); err != nil {
+		fileMissing = true
+	}
+	out := map[string]interface{}{
 		"id":              rec.ID,
 		"path":            rec.Path,
 		"kind":            rec.Kind,
@@ -543,7 +534,173 @@ func (s *Server) handleAudioLibraryGet(w http.ResponseWriter, r *http.Request) {
 		"analyzed_at":     rec.AnalyzedAt,
 		"source":          rec.Source,
 		"analysis":        analysis,
-	})
+		"file_missing":    fileMissing,
+	}
+	if stems, found := audio.DiscoverStems(rec.Path); found {
+		stemMap := map[string]string{}
+		if stems.Vocals != "" {
+			stemMap["vocals"] = stems.Vocals
+		}
+		if stems.Drums != "" {
+			stemMap["drums"] = stems.Drums
+		}
+		if stems.Bass != "" {
+			stemMap["bass"] = stems.Bass
+		}
+		if stems.Other != "" {
+			stemMap["other"] = stems.Other
+		}
+		out["stems"] = stemMap
+	}
+	respond(w, 200, out)
+}
+
+// GET /api/audio/library/{id}/waveforms
+func (s *Server) handleAudioLibraryWaveforms(w http.ResponseWriter, r *http.Request) {
+	rec, ok := s.loadLibraryRecord(w, r)
+	if !ok {
+		return
+	}
+	ctx := r.Context()
+	if _, err := os.Stat(rec.Path); err != nil {
+		respondErr(w, 404, "audio file not found on disk")
+		return
+	}
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		respondErr(w, 503, "ffmpeg not found (required for waveforms)")
+		return
+	}
+
+	mixPeaks, err := audio.ComputePeaks(ctx, rec.Path, audio.DefaultPeakBuckets)
+	if err != nil {
+		if ctx.Err() != nil {
+			return
+		}
+		respondErr(w, 500, err.Error())
+		return
+	}
+
+	out := map[string]interface{}{
+		"mix": mixPeaks,
+	}
+	if stems, found := audio.DiscoverStems(rec.Path); found {
+		stemPeaks := map[string]audio.Peaks{}
+		add := func(name, path string) {
+			if path == "" {
+				return
+			}
+			if !audio.AllowedInspectFile(rec.Path, path) {
+				return
+			}
+			p, err := audio.ComputePeaks(ctx, path, audio.DefaultPeakBuckets)
+			if err != nil {
+				slog.Warn("stem peaks failed", "stem", name, "err", err)
+				return
+			}
+			stemPeaks[name] = p
+		}
+		add("vocals", stems.Vocals)
+		add("drums", stems.Drums)
+		add("bass", stems.Bass)
+		add("other", stems.Other)
+		if len(stemPeaks) > 0 {
+			out["stems"] = stemPeaks
+		}
+	}
+	respond(w, 200, out)
+}
+
+// GET /api/audio/library/{id}/file
+func (s *Server) handleAudioLibraryFile(w http.ResponseWriter, r *http.Request) {
+	rec, ok := s.loadLibraryRecord(w, r)
+	if !ok {
+		return
+	}
+	if !audio.AllowedInspectFile(rec.Path, rec.Path) {
+		respondErr(w, 403, "file not allowed")
+		return
+	}
+	serveInspectAudio(w, r, rec.Path)
+}
+
+// GET /api/audio/library/{id}/stems/{stem}
+func (s *Server) handleAudioLibraryStem(w http.ResponseWriter, r *http.Request) {
+	rec, ok := s.loadLibraryRecord(w, r)
+	if !ok {
+		return
+	}
+	stem := strings.ToLower(r.PathValue("stem"))
+	path := audio.StemPath(rec.Path, stem)
+	if path == "" {
+		respondErr(w, 400, "invalid stem name")
+		return
+	}
+	if !audio.AllowedInspectFile(rec.Path, path) {
+		respondErr(w, 403, "file not allowed")
+		return
+	}
+	if _, err := os.Stat(path); err != nil {
+		respondErr(w, 404, "stem file not found")
+		return
+	}
+	serveInspectAudio(w, r, path)
+}
+
+func (s *Server) loadLibraryRecord(w http.ResponseWriter, r *http.Request) (store.Record, bool) {
+	if s.analysisStore == nil {
+		respondErr(w, 503, "analysis store unavailable")
+		return store.Record{}, false
+	}
+	id, err := parseLibraryID(r.PathValue("id"))
+	if err != nil {
+		respondErr(w, 400, "invalid id")
+		return store.Record{}, false
+	}
+	rec, err := s.analysisStore.GetByID(r.Context(), id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		respondErr(w, 404, "not found")
+		return store.Record{}, false
+	}
+	if err != nil {
+		respondErr(w, 500, err.Error())
+		return store.Record{}, false
+	}
+	return rec, true
+}
+
+func serveInspectAudio(w http.ResponseWriter, r *http.Request, path string) {
+	f, err := os.Open(path)
+	if err != nil {
+		respondErr(w, 404, "file not found")
+		return
+	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		respondErr(w, 500, err.Error())
+		return
+	}
+	if ct := audioContentType(path); ct != "" {
+		w.Header().Set("Content-Type", ct)
+	}
+	http.ServeContent(w, r, filepath.Base(path), fi.ModTime(), f)
+}
+
+func audioContentType(path string) string {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".wav":
+		return "audio/wav"
+	case ".mp3":
+		return "audio/mpeg"
+	case ".flac":
+		return "audio/flac"
+	case ".m4a", ".aac":
+		return "audio/mp4"
+	case ".ogg":
+		return "audio/ogg"
+	default:
+		return ""
+	}
 }
 
 // DELETE /api/audio/library/{id}

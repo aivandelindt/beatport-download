@@ -17,10 +17,105 @@ type StemRequest struct {
 }
 
 type StemResult struct {
-	Vocals string `json:"vocals"`
-	Drums  string `json:"drums"`
-	Bass   string `json:"bass"`
-	Other  string `json:"other"`
+	Vocals string `json:"vocals,omitempty"`
+	Drums  string `json:"drums,omitempty"`
+	Bass   string `json:"bass,omitempty"`
+	Other  string `json:"other,omitempty"`
+}
+
+// StemNames are the conventional stem-splitter stem roles.
+var StemNames = []string{"vocals", "drums", "bass", "other"}
+
+// mixBasename returns the mix filename without extension.
+func mixBasename(mixPath string) string {
+	return strings.TrimSuffix(filepath.Base(mixPath), filepath.Ext(mixPath))
+}
+
+// stemFileCandidates returns possible on-disk filenames for a stem role.
+// stem-splitter writes <basename>_<stem>.wav; older/tests may use <stem>.wav.
+func stemFileCandidates(mixPath, stem string) []string {
+	stem = strings.ToLower(stem)
+	switch stem {
+	case "vocals", "drums", "bass", "other":
+	default:
+		return nil
+	}
+	dir := DefaultStemOutputDir(mixPath)
+	return []string{
+		filepath.Join(dir, mixBasename(mixPath)+"_"+stem+".wav"),
+		filepath.Join(dir, stem+".wav"),
+	}
+}
+
+// resolveStemFile returns the first existing candidate path for stem, or "".
+func resolveStemFile(mixPath, stem string) string {
+	for _, p := range stemFileCandidates(mixPath, stem) {
+		fi, err := os.Stat(p)
+		if err == nil && !fi.IsDir() {
+			return p
+		}
+	}
+	return ""
+}
+
+// DiscoverStems looks for conventional stem WAVs under DefaultStemOutputDir(mixPath).
+// ok is true when at least one stem file exists. Only present paths are set on found.
+func DiscoverStems(mixPath string) (found StemResult, ok bool) {
+	found.Vocals = resolveStemFile(mixPath, "vocals")
+	found.Drums = resolveStemFile(mixPath, "drums")
+	found.Bass = resolveStemFile(mixPath, "bass")
+	found.Other = resolveStemFile(mixPath, "other")
+	ok = found.Vocals != "" || found.Drums != "" || found.Bass != "" || found.Other != ""
+	return found, ok
+}
+
+// StemPath returns the on-disk path for a named stem (prefers existing file).
+// If none exist yet, returns the preferred stem-splitter naming path.
+func StemPath(mixPath, stem string) string {
+	if p := resolveStemFile(mixPath, stem); p != "" {
+		return p
+	}
+	cands := stemFileCandidates(mixPath, stem)
+	if len(cands) == 0 {
+		return ""
+	}
+	return cands[0]
+}
+
+// AllowedInspectFile reports whether requested may be streamed/peaked for mixPath.
+// True only for the cleaned mix path or a conventional stem WAV inside its stem dir.
+func AllowedInspectFile(mixPath, requested string) bool {
+	if mixPath == "" || requested == "" {
+		return false
+	}
+	mixAbs, err := filepath.Abs(mixPath)
+	if err != nil {
+		return false
+	}
+	mixAbs = filepath.Clean(mixAbs)
+	reqAbs, err := filepath.Abs(requested)
+	if err != nil {
+		return false
+	}
+	reqAbs = filepath.Clean(reqAbs)
+
+	if reqAbs == mixAbs {
+		ext := strings.ToLower(filepath.Ext(reqAbs))
+		return audioExts[ext]
+	}
+
+	stemDir := filepath.Clean(DefaultStemOutputDir(mixAbs))
+	if filepath.Dir(reqAbs) != stemDir {
+		return false
+	}
+	base := filepath.Base(reqAbs)
+	prefix := mixBasename(mixAbs) + "_"
+	for _, stem := range StemNames {
+		if base == stem+".wav" || base == prefix+stem+".wav" {
+			return true
+		}
+	}
+	return false
 }
 
 // DefaultStemProvider returns the arch-appropriate default provider.

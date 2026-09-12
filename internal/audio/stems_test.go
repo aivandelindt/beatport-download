@@ -77,6 +77,137 @@ func TestDefaultStemProvider(t *testing.T) {
 	}
 }
 
+func TestDiscoverStems_MissingDir(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	mix := filepath.Join(dir, "track.flac")
+	if err := os.WriteFile(mix, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	found, ok := DiscoverStems(mix)
+	if ok {
+		t.Fatalf("expected no stems, got %+v", found)
+	}
+}
+
+func TestDiscoverStems_Partial(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	mix := filepath.Join(dir, "track.flac")
+	if err := os.WriteFile(mix, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	stemDir := DefaultStemOutputDir(mix)
+	if err := os.MkdirAll(stemDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	vocals := filepath.Join(stemDir, "vocals.wav")
+	drums := filepath.Join(stemDir, "drums.wav")
+	if err := os.WriteFile(vocals, []byte("v"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(drums, []byte("d"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	found, ok := DiscoverStems(mix)
+	if !ok {
+		t.Fatal("expected ok")
+	}
+	if found.Vocals != vocals || found.Drums != drums {
+		t.Fatalf("got %+v", found)
+	}
+	if found.Bass != "" || found.Other != "" {
+		t.Fatalf("unexpected bass/other: %+v", found)
+	}
+}
+
+func TestDiscoverStems_PrefixedNames(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	mix := filepath.Join(dir, "Artist - Track (Remix).flac")
+	if err := os.WriteFile(mix, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	stemDir := DefaultStemOutputDir(mix)
+	if err := os.MkdirAll(stemDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	base := "Artist - Track (Remix)"
+	vocals := filepath.Join(stemDir, base+"_vocals.wav")
+	bass := filepath.Join(stemDir, base+"_bass.wav")
+	if err := os.WriteFile(vocals, []byte("v"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bass, []byte("b"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	found, ok := DiscoverStems(mix)
+	if !ok {
+		t.Fatal("expected ok")
+	}
+	if found.Vocals != vocals || found.Bass != bass {
+		t.Fatalf("got %+v", found)
+	}
+	if found.Drums != "" || found.Other != "" {
+		t.Fatalf("unexpected drums/other: %+v", found)
+	}
+	if !AllowedInspectFile(mix, vocals) {
+		t.Fatal("prefixed vocals should be allowed")
+	}
+	if StemPath(mix, "vocals") != vocals {
+		t.Fatalf("StemPath vocals = %s", StemPath(mix, "vocals"))
+	}
+}
+
+func TestAllowedInspectFile(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	mix := filepath.Join(dir, "track.flac")
+	if err := os.WriteFile(mix, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	stemDir := DefaultStemOutputDir(mix)
+	if err := os.MkdirAll(stemDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	vocals := filepath.Join(stemDir, "vocals.wav")
+	if err := os.WriteFile(vocals, []byte("v"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if !AllowedInspectFile(mix, mix) {
+		t.Fatal("mix should be allowed")
+	}
+	if !AllowedInspectFile(mix, vocals) {
+		t.Fatal("vocals stem should be allowed")
+	}
+	escape := filepath.Join(dir, "other.flac")
+	if err := os.WriteFile(escape, []byte("y"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if AllowedInspectFile(mix, escape) {
+		t.Fatal("sibling file must not be allowed")
+	}
+	parentEscape := filepath.Join(stemDir, "..", "other.flac")
+	if AllowedInspectFile(mix, parentEscape) {
+		t.Fatal("path escape via .. must not be allowed")
+	}
+	wrongName := filepath.Join(stemDir, "lead.wav")
+	if err := os.WriteFile(wrongName, []byte("z"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if AllowedInspectFile(mix, wrongName) {
+		t.Fatal("non-conventional stem name must not be allowed")
+	}
+	wrongExt := filepath.Join(stemDir, "vocals.mp3")
+	if err := os.WriteFile(wrongExt, []byte("z"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if AllowedInspectFile(mix, wrongExt) {
+		t.Fatal("wrong extension must not be allowed")
+	}
+}
+
 func TestSplitStems_MissingBinary(t *testing.T) {
 	origStat := lookPathStat
 	origLook := lookPath

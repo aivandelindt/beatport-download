@@ -1587,6 +1587,7 @@ function renderLibraryTable(items, total, message) {
 }
 
 function hideLibraryDetail() {
+  if (window.LibraryPlayer) window.LibraryPlayer.destroy();
   const detail = $('#library-detail');
   if (detail) {
     detail.style.display = 'none';
@@ -1660,11 +1661,16 @@ async function selectLibraryItem(id) {
 function renderLibraryDetail(data) {
   const detail = $('#library-detail');
   if (!detail) return;
+  if (window.LibraryPlayer) window.LibraryPlayer.destroy();
   const a = data.analysis || {};
   const key = data.key && data.mode ? `${data.key} ${data.mode}`.trim() : libraryKeyLabel(data);
   const bpm = data.tempo_bpm != null ? libraryFmtNum(data.tempo_bpm, 1) : '—';
   const lufs = data.lufs_integrated != null ? libraryFmtNum(data.lufs_integrated, 1) : '—';
   const dur = data.duration_sec != null ? libraryFmtNum(data.duration_sec, 2) + 's' : '—';
+  const fileMissing = !!data.file_missing;
+  const playerSlot = fileMissing
+    ? '<p class="field-hint library-file-missing">Audio file not found on disk. Analysis is still available below.</p>'
+    : '<div id="library-player-slot"></div>';
   detail.innerHTML = `
     <div class="library-detail-header">
       <strong>${escHtml(libraryBasename(data.path || ''))}</strong>
@@ -1673,6 +1679,7 @@ function renderLibraryDetail(data) {
         <button type="button" class="btn-secondary" id="btn-library-delete">Delete</button>
       </div>
     </div>
+    ${playerSlot}
     <div class="analysis-metrics">
       <div><span class="analysis-metric-label">Path</span><span>${escHtml(data.path || '')}</span></div>
       <div><span class="analysis-metric-label">Key</span><span>${escHtml(String(key))}</span></div>
@@ -1697,6 +1704,12 @@ function renderLibraryDetail(data) {
     e.stopPropagation();
     reanalyzeLibraryItem(data.path);
   });
+  if (!fileMissing && window.LibraryPlayer) {
+    const slot = $('#library-player-slot');
+    if (slot) {
+      window.LibraryPlayer.mount(slot, { id: data.id, stems: data.stems || {} });
+    }
+  }
 }
 
 async function deleteLibraryItem(id) {

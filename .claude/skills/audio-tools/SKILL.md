@@ -6,15 +6,16 @@ Use this skill when changing BeatportDL-UI local audio processing: catalog analy
 
 ## Architecture
 
-- Package: `internal/audio` — subprocesses, text parsers, ffmpeg loudnorm, stem-splitter
+- Package: `internal/audio` — subprocesses, text parsers, ffmpeg loudnorm / peaks, stem-splitter
 - Analysis store: `internal/audio/store` — GORM over SQLite (default `{configDir}/analysis.db`) or Postgres; `GetFresh` / `Upsert` / `List` / `GetByID` / `Delete`
 - Handlers: `internal/server/audio_handlers.go`
-- UI: top-bar **Audio** tab with panels Analyze | Stems | Normalize | **Library**
+- UI: top-bar **Audio** tab with panels Analyze | Stems | Normalize | **Library** (inspector: play + waveforms)
 - Jobs: same in-memory `Job` map as downloads; `kind` = `analyze|stems|normalize|download`
 - Analysis: spawn `mcp-server` or `cli` from `third_party/audio-analyzer-rs`; **parse formatted text** into typed JSON (do not patch the Rust crate for JSON)
 - Cache: `runAnalyzeJob` checks store before analyze; `force: true` skips cache; upsert on success; `full_analysis` row satisfies partial kinds via `audio.TrimAnalysis`
 - Degraded mode: if `store.Open` fails in `NewServer`, log error, leave `analysisStore` nil — analyze works, Library returns 503, banner in Audio tab
 - Stems: `stem-splitter` CLI (`stem-splitter-core` 1.2.0 ONNX). Apple Silicon default CoreML; Intel auto/XNNPACK/CPU
+- Library inspector: `DiscoverStems` / `AllowedInspectFile`; `ComputePeaks` via ffmpeg; stream `/file` and `/stems/{stem}`
 - Normalize: two-pass ffmpeg `loudnorm` (EBU R128)
 
 ## API
@@ -26,7 +27,10 @@ Use this skill when changing BeatportDL-UI local audio processing: catalog analy
 | POST | `/api/audio/normalize` | `{path, overwrite, target_lufs?}` |
 | POST | `/api/audio/stems` | `{path, provider}` |
 | GET | `/api/audio/library` | `?q=&key=&bpm_min=&bpm_max=&limit=&offset=` |
-| GET | `/api/audio/library/{id}` | — full payload in `analysis` |
+| GET | `/api/audio/library/{id}` | full payload + `stems` map + `file_missing` |
+| GET | `/api/audio/library/{id}/waveforms` | mix (+ stem) peaks; needs ffmpeg |
+| GET | `/api/audio/library/{id}/file` | stream mix |
+| GET | `/api/audio/library/{id}/stems/{stem}` | stream stem WAV |
 | DELETE | `/api/audio/library/{id}` | — |
 
 Analysis `kind`: `audio_info`, `spectral_features`, `harmonic_analysis`, `rhythm_analysis`, `full_analysis`.
