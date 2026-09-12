@@ -759,6 +759,72 @@ body {
 .library-wave-stem .library-wave-meta .analysis-metric-label {
   text-transform: capitalize;
 }
+.library-overlay-legend {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+}
+.library-energy-canvas {
+  height: 36px;
+}
+.library-spectrogram-wrap {
+  margin-top: 8px;
+}
+.library-spectrogram {
+  width: 100%;
+  height: auto;
+  max-height: 220px;
+  object-fit: fill;
+  display: block;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.35);
+}
+.library-spectrogram-status {
+  font-size: 0.78rem;
+  color: var(--text-3);
+  padding: 8px 0;
+}
+.library-research-meta {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-2);
+}
+.library-issues {
+  margin-top: 12px;
+}
+.library-issue {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin-top: 6px;
+  background: rgba(0, 0, 0, 0.2);
+}
+.library-issue-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.library-issue-meta {
+  font-size: 0.72rem;
+  color: var(--text-3);
+}
+.library-issue-body {
+  font-size: 0.8rem;
+  color: var(--text-2);
+  line-height: 1.35;
+}
+.library-issue-seek {
+  margin-left: auto;
+  font-size: 0.72rem;
+  padding: 2px 8px;
+}
+.library-detail-actions a.btn-secondary {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
 .job-kind-chip {
   display: inline-block;
   font-size: 0.65rem;

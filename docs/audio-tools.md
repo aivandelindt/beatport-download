@@ -63,9 +63,26 @@ Fourth Audio tab: browse persisted analysis results in a searchable table.
 | BPM range | `bpm_min`, `bpm_max` |
 | Pagination | `limit` (default 50), `offset` |
 
-Table columns: path (basename), key, BPM, LUFS, kind, analyzed_at. Row click opens an **inspector**: play the mix, mix waveform, optional stem waveforms (when `<basename>_stems/` exists on disk), summary metrics, and full JSON. Actions: **Delete** (remove row) and **Re-analyze** (`POST /api/audio/analyze` with `force: true`).
+Table columns: path (basename), key (with Camelot when known), BPM, LUFS, kind, analyzed_at. Unmeasured metrics show as `—` (not `0.0`).
 
-Waveform peaks are computed server-side with **ffmpeg** (same dependency as normalize/tags). Playback streams via id-scoped routes — only the analysis record’s file and its conventional stem WAVs. If the mix file is missing on disk, analysis JSON still shows and the player is hidden.
+Row click opens an **inspector**:
+
+- Mix play + waveform with **measured** (yellow) and **estimated** beat ticks, section labels
+- Within-track **energy** strip (custom 0–100 RMS percentile — labeled as such)
+- Log-frequency **spectrogram** PNG (`ffmpeg showspectrumpic`)
+- Camelot, half/double BPM, clipping/masking **issues** (click Seek)
+- Optional stem waveforms when `<basename>_stems/` exists
+- Actions: **Export** (zip: report.md, analysis.json, CSVs, spectrogram), **Re-analyze**, **Delete**
+
+Post-parse enrich (on analyze): Camelot from key+mode, half/double BPM, estimated beat grid, file SHA-256, true-peak/masking findings. On-demand research (Library open): ffmpeg RMS/LUFS timelines, clipping scan, labeled sections heuristic.
+
+**Section labels** (`intro`/`verse`/`chorus`/`build`/`drop`/`breakdown`/`outro`/`unknown`) combine novelty boundaries from the analyzer with RMS vs median — never “loudest = chorus”. Reliability is `estimated` or `low`.
+
+**Beat grid honesty:** analyzer text prints at most ~10–20 measured beat times; the rest of the grid is extrapolated from median BPM and marked estimated.
+
+**Deferred** (reported as not performed): MIDI/notes, chord timeline, VU meter, waveform editing, Python workers, patching audio-analyzer-rs for JSON.
+
+Waveform peaks and spectrograms are cached under `~/.config/beatportdl-ui/cache/audio-viz/` (keyed by path+size+mtime). Original files are never modified by research/export.
 
 ### Stems
 
@@ -137,8 +154,11 @@ Configured path → next to the running executable → repo-relative `third_part
 | POST | `/api/audio/normalize` | `{ "path", "overwrite", "target_lufs?" }` |
 | POST | `/api/audio/stems` | `{ "path", "provider" }` |
 | GET | `/api/audio/library` | `?q=&key=&bpm_min=&bpm_max=&limit=&offset=` → `{ "items", "total" }`; `503` if store unavailable |
-| GET | `/api/audio/library/{id}` | Full row + `"analysis"` payload; `"stems"` map when on disk; `"file_missing"`; `404` if missing |
-| GET | `/api/audio/library/{id}/waveforms` | Mix (+ stem) peak arrays for canvas; needs ffmpeg; `404` if mix gone; `503` if no ffmpeg/store |
+| GET | `/api/audio/library/{id}` | Full row + `"analysis"`; `"camelot"`; `"issues"`; null-safe tempo/LUFS/duration; `"stems"`; `"file_missing"` |
+| GET | `/api/audio/library/{id}/waveforms` | Mix (+ stem) peak arrays for canvas; needs ffmpeg |
+| GET | `/api/audio/library/{id}/research` | On-demand RMS/LUFS/energy timelines, beat grid, labeled sections, clipping, findings |
+| GET | `/api/audio/library/{id}/spectrogram` | `image/png` log-frequency spectrogram (cached) |
+| GET | `/api/audio/library/{id}/export` | Zip of report.md, analysis.json, sections/beats/issues CSV, spectrogram |
 | GET | `/api/audio/library/{id}/file` | Stream mix audio (`Accept-Ranges`) |
 | GET | `/api/audio/library/{id}/stems/{stem}` | Stream `vocals` \| `drums` \| `bass` \| `other` WAV |
 | DELETE | `/api/audio/library/{id}` | Remove row; `{ "status": "deleted" }` |

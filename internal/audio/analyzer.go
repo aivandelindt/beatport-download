@@ -161,6 +161,8 @@ func TrimAnalysis(full Analysis, kind string) Analysis {
 		Source:  full.Source,
 		Path:    full.Path,
 		RawText: full.RawText,
+		Meta:    full.Meta,
+		Issues:  full.Issues,
 	}
 	switch kind {
 	case KindAudioInfo:

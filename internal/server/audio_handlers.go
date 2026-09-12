@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -225,6 +226,12 @@ func (s *Server) runAnalyzeJob(ctx context.Context, job *Job, files []string, ki
 			})
 		}
 		cancel()
+
+		if err == nil {
+			if enrErr := audio.EnrichAnalysis(ctx, &result, abs); enrErr != nil {
+				slog.Warn("analysis enrich failed", "path", abs, "err", enrErr)
+			}
+		}
 
 		if err == nil && s.analysisStore != nil {
 			rec, recErr := store.RecordFromAnalysis(abs, fi.Size(), fi.ModTime().Unix(), result)
@@ -523,18 +530,46 @@ func (s *Server) handleAudioLibraryGet(w http.ResponseWriter, r *http.Request) {
 		fileMissing = true
 	}
 	out := map[string]interface{}{
-		"id":              rec.ID,
-		"path":            rec.Path,
-		"kind":            rec.Kind,
-		"key":             rec.Key,
-		"mode":            rec.Mode,
-		"tempo_bpm":       rec.TempoBPM,
-		"lufs_integrated": rec.LUFSIntegrated,
-		"duration_sec":    rec.DurationSec,
-		"analyzed_at":     rec.AnalyzedAt,
-		"source":          rec.Source,
-		"analysis":        analysis,
-		"file_missing":    fileMissing,
+		"id":           rec.ID,
+		"path":         rec.Path,
+		"kind":         rec.Kind,
+		"key":          rec.Key,
+		"mode":         rec.Mode,
+		"analyzed_at":  rec.AnalyzedAt,
+		"source":       rec.Source,
+		"file_missing": fileMissing,
+	}
+	audio.EnsureCamelot(&analysis)
+	out["analysis"] = analysis
+	if analysis.HarmonicAnalysis != nil && analysis.HarmonicAnalysis.Camelot != "" {
+		out["camelot"] = analysis.HarmonicAnalysis.Camelot
+	} else if c := audio.CamelotFromKeyMode(rec.Key, rec.Mode); c != "" {
+		out["camelot"] = c
+	}
+	if analysis.Issues != nil {
+		out["issues"] = analysis.Issues
+	}
+	if analysis.LabeledSections != nil {
+		out["labeled_sections"] = analysis.LabeledSections
+	}
+	// Null-safe metrics: omit zeros when the kind did not measure them.
+	switch rec.Kind {
+	case audio.KindFullAnalysis, audio.KindRhythmAnalysis:
+		out["tempo_bpm"] = rec.TempoBPM
+	default:
+		out["tempo_bpm"] = nil
+	}
+	switch rec.Kind {
+	case audio.KindFullAnalysis, audio.KindSpectralFeatures:
+		out["lufs_integrated"] = rec.LUFSIntegrated
+	default:
+		out["lufs_integrated"] = nil
+	}
+	switch rec.Kind {
+	case audio.KindFullAnalysis, audio.KindAudioInfo, audio.KindSpectralFeatures:
+		out["duration_sec"] = rec.DurationSec
+	default:
+		out["duration_sec"] = nil
 	}
 	if stems, found := audio.DiscoverStems(rec.Path); found {
 		stemMap := map[string]string{}
@@ -553,6 +588,118 @@ func (s *Server) handleAudioLibraryGet(w http.ResponseWriter, r *http.Request) {
 		out["stems"] = stemMap
 	}
 	respond(w, 200, out)
+}
+
+// GET /api/audio/library/{id}/research
+func (s *Server) handleAudioLibraryResearch(w http.ResponseWriter, r *http.Request) {
+	rec, ok := s.loadLibraryRecord(w, r)
+	if !ok {
+		return
+	}
+	ctx := r.Context()
+	if _, err := os.Stat(rec.Path); err != nil {
+		respondErr(w, 404, "audio file not found on disk")
+		return
+	}
+	var analysis audio.Analysis
+	if rec.PayloadJSON != "" {
+		if err := json.Unmarshal([]byte(rec.PayloadJSON), &analysis); err != nil {
+			respondErr(w, 500, "invalid stored analysis payload")
+			return
+		}
+	}
+	audio.EnsureCamelot(&analysis)
+	bundle, err := audio.BuildResearch(ctx, analysis, rec.Path)
+	if err != nil {
+		if ctx.Err() != nil {
+			return
+		}
+		respondErr(w, 500, err.Error())
+		return
+	}
+	bundle.SpectrogramURL = fmt.Sprintf("/api/audio/library/%d/spectrogram", rec.ID)
+	respond(w, 200, bundle)
+}
+
+// GET /api/audio/library/{id}/spectrogram
+func (s *Server) handleAudioLibrarySpectrogram(w http.ResponseWriter, r *http.Request) {
+	rec, ok := s.loadLibraryRecord(w, r)
+	if !ok {
+		return
+	}
+	ctx := r.Context()
+	if _, err := os.Stat(rec.Path); err != nil {
+		respondErr(w, 404, "audio file not found on disk")
+		return
+	}
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		respondErr(w, 503, "ffmpeg not found (required for spectrogram)")
+		return
+	}
+	png, err := audio.EnsureSpectrogram(ctx, config.Dir(), rec.Path, rec.FileSize, rec.MtimeUnix)
+	if err != nil {
+		if ctx.Err() != nil {
+			return
+		}
+		respondErr(w, 500, err.Error())
+		return
+	}
+	f, err := os.Open(png)
+	if err != nil {
+		respondErr(w, 500, err.Error())
+		return
+	}
+	defer f.Close()
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Cache-Control", "private, max-age=3600")
+	http.ServeContent(w, r, "spectrogram.png", time.Unix(rec.MtimeUnix, 0), f)
+}
+
+// GET /api/audio/library/{id}/export
+func (s *Server) handleAudioLibraryExport(w http.ResponseWriter, r *http.Request) {
+	rec, ok := s.loadLibraryRecord(w, r)
+	if !ok {
+		return
+	}
+	ctx := r.Context()
+	var analysis audio.Analysis
+	if rec.PayloadJSON != "" {
+		if err := json.Unmarshal([]byte(rec.PayloadJSON), &analysis); err != nil {
+			respondErr(w, 500, "invalid stored analysis payload")
+			return
+		}
+	}
+	audio.EnsureCamelot(&analysis)
+
+	var research audio.ResearchBundle
+	var spectrogram string
+	if _, err := os.Stat(rec.Path); err == nil {
+		research, err = audio.BuildResearch(ctx, analysis, rec.Path)
+		if err != nil && ctx.Err() != nil {
+			return
+		}
+		if err == nil {
+			if png, pngErr := audio.EnsureSpectrogram(ctx, config.Dir(), rec.Path, rec.FileSize, rec.MtimeUnix); pngErr == nil {
+				spectrogram = png
+			}
+		}
+	} else {
+		research = audio.ResearchBundle{
+			Path:         rec.Path,
+			Issues:       analysis.Issues,
+			NotPerformed: []string{"ffmpeg_timelines", "spectrogram", "midi_transcription"},
+		}
+		if analysis.HarmonicAnalysis != nil {
+			research.Camelot = analysis.HarmonicAnalysis.Camelot
+		}
+	}
+
+	name := audio.BasenameSafe(rec.Path) + "-research.zip"
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", name))
+	if err := audio.WriteExportZip(ctx, w, analysis, research, spectrogram); err != nil {
+		slog.Error("export zip failed", "err", err)
+	}
 }
 
 // GET /api/audio/library/{id}/waveforms

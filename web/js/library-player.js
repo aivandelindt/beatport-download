@@ -1,5 +1,6 @@
 /**
  * Library detail audio player: mix + stem waveforms with HTML5 audio.
+ * Overlays: beat grid, section labels, energy strip, spectrogram, issue seek.
  * Loaded before app.js; exposes window.LibraryPlayer.
  */
 (function (global) {
@@ -28,7 +29,7 @@
     return m + ':' + String(r).padStart(2, '0');
   }
 
-  function drawPeaks(canvas, peaks, progress) {
+  function drawPeaks(canvas, peaks, progress, overlays) {
     if (!canvas || !peaks || !peaks.length) return;
     const dpr = window.devicePixelRatio || 1;
     const cssW = canvas.clientWidth || 600;
@@ -47,6 +48,17 @@
     const waveColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#00e5a0';
     const muted = 'rgba(255,255,255,0.18)';
     const playheadX = progress != null ? progress * w : -1;
+    const duration = (overlays && overlays.duration) || 0;
+
+    // Section backgrounds
+    if (overlays && overlays.sections && duration > 0) {
+      overlays.sections.forEach((sec, i) => {
+        const x0 = (sec.start_time / duration) * w;
+        const x1 = (sec.end_time / duration) * w;
+        ctx.fillStyle = i % 2 === 0 ? 'rgba(0,229,160,0.06)' : 'rgba(100,140,255,0.06)';
+        ctx.fillRect(x0, 0, Math.max(1, x1 - x0), h);
+      });
+    }
 
     for (let i = 0; i < pairs; i++) {
       const mn = peaks[i * 2];
@@ -58,9 +70,77 @@
       ctx.fillStyle = playheadX >= 0 && x <= playheadX ? waveColor : muted;
       ctx.fillRect(x, y1, Math.max(1, barW - dpr), barH);
     }
+
+    // Estimated beat ticks
+    if (overlays && overlays.estimatedBeats && duration > 0) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+      ctx.lineWidth = Math.max(1, dpr);
+      overlays.estimatedBeats.forEach(t => {
+        const x = (t / duration) * w;
+        ctx.beginPath();
+        ctx.moveTo(x, h * 0.15);
+        ctx.lineTo(x, h * 0.85);
+        ctx.stroke();
+      });
+    }
+    // Measured beat ticks
+    if (overlays && overlays.measuredBeats && duration > 0) {
+      ctx.strokeStyle = 'rgba(255,200,80,0.85)';
+      ctx.lineWidth = Math.max(1, dpr);
+      overlays.measuredBeats.forEach(t => {
+        const x = (t / duration) * w;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      });
+    }
+    // Section boundary markers + labels
+    if (overlays && overlays.sections && duration > 0) {
+      overlays.sections.forEach(sec => {
+        const x = (sec.start_time / duration) * w;
+        ctx.fillStyle = 'rgba(120,180,255,0.9)';
+        ctx.fillRect(x, 0, Math.max(1, dpr), h);
+        if (sec.label) {
+          ctx.fillStyle = 'rgba(200,220,255,0.9)';
+          ctx.font = `${Math.max(10, 11 * dpr)}px sans-serif`;
+          ctx.fillText(sec.label, x + 3 * dpr, 12 * dpr);
+        }
+      });
+    }
+
     if (playheadX >= 0) {
       ctx.fillStyle = waveColor;
       ctx.fillRect(playheadX, 0, Math.max(1, dpr), h);
+    }
+  }
+
+  function drawEnergy(canvas, energy, progress) {
+    if (!canvas || !energy || !energy.energy_0_100 || !energy.energy_0_100.length) return;
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = canvas.clientWidth || 600;
+    const cssH = canvas.clientHeight || 36;
+    const w = Math.max(1, Math.floor(cssW * dpr));
+    const h = Math.max(1, Math.floor(cssH * dpr));
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
+    const vals = energy.energy_0_100;
+    const barW = Math.max(1, w / vals.length);
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#00e5a0';
+    for (let i = 0; i < vals.length; i++) {
+      const frac = Math.min(1, Math.max(0, vals[i] / 100));
+      const bh = Math.max(1, frac * h * 0.92);
+      const x = (i / vals.length) * w;
+      ctx.fillStyle = progress != null && x / w <= progress ? accent : 'rgba(255,255,255,0.25)';
+      ctx.fillRect(x, h - bh, Math.max(1, barW - dpr), bh);
+    }
+    if (progress != null) {
+      ctx.fillStyle = accent;
+      ctx.fillRect(progress * w, 0, Math.max(1, dpr), h);
     }
   }
 
@@ -79,6 +159,29 @@
     });
   }
 
+  function mixOverlays() {
+    if (!active) return null;
+    const r = active.research || {};
+    return {
+      duration: active.durations.mix || r.rms?.duration_sec || 0,
+      measuredBeats: r.beat_times_measured || [],
+      estimatedBeats: r.beat_grid_estimated || [],
+      sections: r.labeled_sections || [],
+    };
+  }
+
+  function redrawMix(progress) {
+    if (!active) return;
+    const canvas = active.canvases.mix;
+    if (canvas && active.peakData.mix) {
+      drawPeaks(canvas, active.peakData.mix, progress, mixOverlays());
+    }
+    const energyCanvas = active.root.querySelector('[data-canvas="energy"]');
+    if (energyCanvas && active.research && active.research.energy) {
+      drawEnergy(energyCanvas, active.research.energy, progress);
+    }
+  }
+
   function tick() {
     if (!active || !active.current) return;
     const a = active.audios[active.current];
@@ -86,9 +189,13 @@
     const dur = a.duration || active.durations[active.current] || 0;
     const t = a.currentTime || 0;
     const prog = dur > 0 ? t / dur : 0;
-    const canvas = active.canvases[active.current];
-    if (canvas && active.peakData[active.current]) {
-      drawPeaks(canvas, active.peakData[active.current], prog);
+    if (active.current === 'mix') {
+      redrawMix(prog);
+    } else {
+      const canvas = active.canvases[active.current];
+      if (canvas && active.peakData[active.current]) {
+        drawPeaks(canvas, active.peakData[active.current], prog, null);
+      }
     }
     const timeEl = active.root.querySelector(`[data-time="${active.current}"]`);
     if (timeEl) timeEl.textContent = `${fmtTime(t)} / ${fmtTime(dur)}`;
@@ -102,19 +209,29 @@
 
   function seekFromClick(name, e) {
     if (!active) return;
-    const canvas = active.canvases[name];
-    const a = active.audios[name];
+    const canvas = active.canvases[name] || active.root.querySelector(`[data-canvas="${name}"]`);
+    const a = active.audios.mix;
     if (!canvas || !a) return;
     const rect = canvas.getBoundingClientRect();
     const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    const dur = a.duration || active.durations[name] || 0;
+    const dur = a.duration || active.durations.mix || 0;
     if (dur > 0) {
       a.currentTime = ratio * dur;
-      active.current = name;
-      drawPeaks(canvas, active.peakData[name] || [], ratio);
-      const timeEl = active.root.querySelector(`[data-time="${name}"]`);
+      active.current = 'mix';
+      redrawMix(ratio);
+      const timeEl = active.root.querySelector('[data-time="mix"]');
       if (timeEl) timeEl.textContent = `${fmtTime(a.currentTime)} / ${fmtTime(dur)}`;
     }
+  }
+
+  function seekTo(sec) {
+    if (!active || !active.audios.mix) return;
+    const a = active.audios.mix;
+    const dur = a.duration || active.durations.mix || 0;
+    if (!(dur > 0)) return;
+    a.currentTime = Math.min(dur, Math.max(0, sec));
+    active.current = 'mix';
+    redrawMix(a.currentTime / dur);
   }
 
   function togglePlay(name) {
@@ -139,6 +256,68 @@
     }).catch(() => {
       setPlaying(name, false);
     });
+  }
+
+  function applyResearch(research) {
+    if (!active) return;
+    active.research = research || {};
+    redrawMix(0);
+
+    const energyWrap = active.root.querySelector('#library-energy-wrap');
+    if (energyWrap) {
+      if (research && research.energy && research.energy.status === 'measured') {
+        energyWrap.style.display = '';
+        drawEnergy(active.root.querySelector('[data-canvas="energy"]'), research.energy, 0);
+      } else {
+        energyWrap.style.display = 'none';
+      }
+    }
+
+    const issuesEl = active.root.querySelector('#library-issues-list');
+    if (issuesEl) {
+      const issues = (research && research.issues) || [];
+      if (issues.length === 0) {
+        issuesEl.innerHTML = '<p class="field-hint">No issues flagged.</p>';
+      } else {
+        issuesEl.innerHTML = issues.map((iss, idx) => {
+          const t = iss.start_time != null ? fmtTime(iss.start_time) : '—';
+          const seek = iss.start_time != null
+            ? ` <button type="button" class="btn-secondary library-issue-seek" data-issue-idx="${idx}">Seek</button>`
+            : '';
+          return `<div class="library-issue" data-issue-idx="${idx}">
+            <div class="library-issue-head"><strong>${esc(iss.category || 'issue')}</strong>
+              <span class="library-issue-meta">${esc(iss.reliability || '')} · ${esc(t)}</span>${seek}</div>
+            <div class="library-issue-body">${esc(iss.measurement || '')} ${esc(iss.units || '')} — ${esc(iss.suggested_action || '')}</div>
+          </div>`;
+        }).join('');
+        issuesEl.querySelectorAll('.library-issue-seek').forEach(btn => {
+          btn.addEventListener('click', e => {
+            e.stopPropagation();
+            const idx = Number(btn.dataset.issueIdx);
+            const iss = issues[idx];
+            if (iss && iss.start_time != null) seekTo(iss.start_time);
+          });
+        });
+      }
+    }
+
+    const metaExtra = active.root.querySelector('#library-research-meta');
+    if (metaExtra && research) {
+      const parts = [];
+      if (research.camelot) parts.push(`Camelot ${research.camelot}`);
+      if (research.tempo_half_bpm) parts.push(`½ ${Number(research.tempo_half_bpm).toFixed(1)} / 2× ${Number(research.tempo_double_bpm).toFixed(1)} BPM`);
+      if (research.clipping_status === 'measured') parts.push(`Clipping runs: ${(research.clipping || []).length}`);
+      if (research.labeled_sections) parts.push(`Sections: ${research.labeled_sections.length}`);
+      metaExtra.textContent = parts.join(' · ') || '';
+    }
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   function mount(root, opts) {
@@ -174,6 +353,23 @@
           </div>
           <div class="library-wave-status" id="library-wave-status">Loading waveform…</div>
           <canvas class="library-wave-canvas" data-canvas="mix" style="display:none"></canvas>
+          <p class="field-hint library-overlay-legend">Yellow ticks = measured beats · faint ticks = estimated grid · blue = section boundaries</p>
+        </div>
+        <div class="library-wave-row" id="library-energy-wrap" style="display:none">
+          <div class="library-wave-meta">
+            <span class="analysis-metric-label">Energy (within-track RMS %ile)</span>
+          </div>
+          <canvas class="library-wave-canvas library-energy-canvas" data-canvas="energy"></canvas>
+        </div>
+        <div class="library-spectrogram-wrap">
+          <div class="library-wave-meta"><span class="analysis-metric-label">Spectrogram</span></div>
+          <div class="library-spectrogram-status" id="library-spec-status">Loading spectrogram…</div>
+          <img class="library-spectrogram" id="library-spectrogram" alt="Spectrogram" style="display:none" />
+        </div>
+        <p class="library-research-meta" id="library-research-meta"></p>
+        <div class="library-issues">
+          <div class="analysis-metric-label">Issues</div>
+          <div id="library-issues-list"><p class="field-hint">Loading research…</p></div>
         </div>
         <div class="library-stems-block">${stemsHTML}</div>
       </div>`;
@@ -204,6 +400,8 @@
       durations,
       current: null,
       raf: null,
+      research: null,
+      id,
     };
 
     playerRoot.querySelectorAll('[data-play]').forEach(btn => {
@@ -212,10 +410,27 @@
         togglePlay(btn.dataset.play);
       });
     });
-    playerRoot.querySelectorAll('[data-canvas]').forEach(canvas => {
+    playerRoot.querySelectorAll('[data-canvas="mix"], [data-canvas="energy"]').forEach(canvas => {
       canvas.addEventListener('click', e => {
         e.stopPropagation();
-        seekFromClick(canvas.dataset.canvas, e);
+        seekFromClick('mix', e);
+      });
+    });
+    playerRoot.querySelectorAll('[data-canvas]').forEach(canvas => {
+      const name = canvas.dataset.canvas;
+      if (name === 'mix' || name === 'energy') return;
+      canvas.addEventListener('click', e => {
+        e.stopPropagation();
+        const a = audios[name];
+        if (!a) return;
+        const rect = canvas.getBoundingClientRect();
+        const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+        const dur = a.duration || durations[name] || 0;
+        if (dur > 0) {
+          a.currentTime = ratio * dur;
+          active.current = name;
+          drawPeaks(canvas, peakData[name] || [], ratio, null);
+        }
       });
     });
 
@@ -231,8 +446,11 @@
           cancelAnimationFrame(active.raf);
           active.raf = null;
         }
-        const canvas = canvases[name];
-        if (canvas && peakData[name]) drawPeaks(canvas, peakData[name], 1);
+        if (name === 'mix') redrawMix(1);
+        else {
+          const canvas = canvases[name];
+          if (canvas && peakData[name]) drawPeaks(canvas, peakData[name], 1, null);
+        }
       });
     });
 
@@ -251,7 +469,7 @@
           peakData.mix = data.mix.peaks;
           if (data.mix.duration_sec) durations.mix = data.mix.duration_sec;
           mixCanvas.style.display = '';
-          drawPeaks(mixCanvas, peakData.mix, 0);
+          redrawMix(0);
         }
         const stemPeaks = data.stems || {};
         stemNames.forEach(n => {
@@ -260,7 +478,7 @@
           peakData[n] = p.peaks;
           if (p.duration_sec) durations[n] = p.duration_sec;
           const c = canvases[n];
-          if (c) drawPeaks(c, peakData[n], 0);
+          if (c) drawPeaks(c, peakData[n], 0, null);
         });
       })
       .catch(err => {
@@ -271,7 +489,44 @@
           status.classList.add('library-wave-status-error');
         }
       });
+
+    const specImg = playerRoot.querySelector('#library-spectrogram');
+    const specStatus = playerRoot.querySelector('#library-spec-status');
+    const specURL = `/api/audio/library/${id}/spectrogram`;
+    const img = new Image();
+    img.onload = () => {
+      if (!active || active.root !== playerRoot) return;
+      if (specStatus) specStatus.style.display = 'none';
+      if (specImg) {
+        specImg.src = specURL;
+        specImg.style.display = '';
+      }
+    };
+    img.onerror = () => {
+      if (!active || active.root !== playerRoot) return;
+      if (specStatus) {
+        specStatus.textContent = 'Spectrogram unavailable';
+        specStatus.classList.add('library-wave-status-error');
+      }
+    };
+    img.src = specURL;
+
+    fetch(`/api/audio/library/${id}/research`)
+      .then(async res => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Research failed');
+        return data;
+      })
+      .then(data => {
+        if (!active || active.root !== playerRoot) return;
+        applyResearch(data);
+      })
+      .catch(err => {
+        if (!active || active.root !== playerRoot) return;
+        const issuesEl = playerRoot.querySelector('#library-issues-list');
+        if (issuesEl) issuesEl.innerHTML = `<p class="field-hint library-wave-status-error">${esc(err.message || 'Research unavailable')}</p>`;
+      });
   }
 
-  global.LibraryPlayer = { mount, destroy };
+  global.LibraryPlayer = { mount, destroy, seekTo };
 })(window);

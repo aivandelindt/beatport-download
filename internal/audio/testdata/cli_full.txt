@@ -45,6 +45,8 @@ Estimated Tempo: 84.0 BPM (confidence: 0.316)
 Detected Beats: 69
 Mean tempo: 84.3 BPM | Median: 84.0 BPM
 Stability: 0.951 (0=erratic, 1=metronomic)
+IBI std dev: 0.012 sec
+First beats: 0.51s, 1.23s, 1.94s, 2.66s, 3.37s
 
 ── Percussive Character ──
 Percussive ratio:    0.277 — harmony-dominated

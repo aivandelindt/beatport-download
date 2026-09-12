@@ -1514,17 +1514,27 @@ function renderAnalysisResults(job) {
   if (list.length === 0) return;
   wrap.style.display = '';
   const a = list[list.length - 1];
-  const key = a.harmonic_analysis ? `${a.harmonic_analysis.key || ''} ${a.harmonic_analysis.mode || ''}`.trim() : '—';
+  const harm = a.harmonic_analysis;
+  const key = harm ? `${harm.key || ''} ${harm.mode || ''}`.trim() : '—';
+  const camelot = harm?.camelot
+    ? camelotTextHTML(harm.camelot)
+    : '—';
   const bpm = a.rhythm_analysis?.tempo_bpm != null ? a.rhythm_analysis.tempo_bpm : '—';
+  const half = a.rhythm_analysis?.tempo_half_bpm;
+  const dbl = a.rhythm_analysis?.tempo_double_bpm;
+  const bpmAlt = half && dbl ? ` (½ ${Number(half).toFixed(1)} / 2× ${Number(dbl).toFixed(1)})` : '';
   const lufs = a.spectral_features?.lufs_integrated != null ? a.spectral_features.lufs_integrated : '—';
   const dur = a.audio_info?.duration_sec != null ? a.audio_info.duration_sec.toFixed(2) + 's' : '—';
+  const issueCount = Array.isArray(a.issues) ? a.issues.length : 0;
   summary.innerHTML = `
     <div class="analysis-metrics">
       <div><span class="analysis-metric-label">File</span><span>${escHtml(a.path || '')}</span></div>
       <div><span class="analysis-metric-label">Key</span><span>${escHtml(String(key))}</span></div>
-      <div><span class="analysis-metric-label">BPM</span><span>${escHtml(String(bpm))}</span></div>
+      <div><span class="analysis-metric-label">Camelot</span><span>${camelot}</span></div>
+      <div><span class="analysis-metric-label">BPM</span><span>${escHtml(String(bpm))}${escHtml(bpmAlt)}</span></div>
       <div><span class="analysis-metric-label">LUFS</span><span>${escHtml(String(lufs))}</span></div>
       <div><span class="analysis-metric-label">Duration</span><span>${escHtml(String(dur))}</span></div>
+      <div><span class="analysis-metric-label">Issues</span><span>${escHtml(String(issueCount))}</span></div>
       <div><span class="analysis-metric-label">Source</span><span>${escHtml(a.source || '')}</span></div>
     </div>`;
   jsonEl.textContent = JSON.stringify(list, null, 2);
@@ -1536,8 +1546,16 @@ function libraryKeyLabel(item) {
 }
 
 function libraryFmtNum(n, digits) {
-  if (n == null || Number.isNaN(Number(n))) return '—';
+  if (n == null || n === '' || Number.isNaN(Number(n))) return '—';
   return Number(n).toFixed(digits);
+}
+
+function libraryKeyWithCamelot(item) {
+  const key = libraryKeyLabel(item);
+  if (item.camelot) {
+    return `${camelotTextHTML(item.camelot)}${key !== '—' ? ` <span class="musical-key-name">${escHtml(key)}</span>` : ''}`;
+  }
+  return escHtml(key);
 }
 
 function libraryFmtAnalyzed(ts) {
@@ -1568,7 +1586,7 @@ function renderLibraryTable(items, total, message) {
     const selected = state.librarySelectedId === item.id ? ' selected' : '';
     return `<tr class="library-row${selected}" data-library-id="${item.id}">
       <td class="library-col-path" title="${escHtml(item.path || '')}">${escHtml(libraryBasename(item.path))}</td>
-      <td>${escHtml(libraryKeyLabel(item))}</td>
+      <td>${libraryKeyWithCamelot(item)}</td>
       <td class="library-col-num">${escHtml(libraryFmtNum(item.tempo_bpm, 1))}</td>
       <td class="library-col-num">${escHtml(libraryFmtNum(item.lufs_integrated, 1))}</td>
       <td class="library-col-kind">${escHtml(item.kind || '—')}</td>
@@ -1664,10 +1682,15 @@ function renderLibraryDetail(data) {
   if (window.LibraryPlayer) window.LibraryPlayer.destroy();
   const a = data.analysis || {};
   const key = data.key && data.mode ? `${data.key} ${data.mode}`.trim() : libraryKeyLabel(data);
+  const camelot = data.camelot
+    ? camelotTextHTML(data.camelot)
+    : (a.harmonic_analysis?.camelot ? camelotTextHTML(a.harmonic_analysis.camelot) : '—');
   const bpm = data.tempo_bpm != null ? libraryFmtNum(data.tempo_bpm, 1) : '—';
   const lufs = data.lufs_integrated != null ? libraryFmtNum(data.lufs_integrated, 1) : '—';
   const dur = data.duration_sec != null ? libraryFmtNum(data.duration_sec, 2) + 's' : '—';
   const fileMissing = !!data.file_missing;
+  const issueCount = Array.isArray(data.issues) ? data.issues.length
+    : (Array.isArray(a.issues) ? a.issues.length : 0);
   const playerSlot = fileMissing
     ? '<p class="field-hint library-file-missing">Audio file not found on disk. Analysis is still available below.</p>'
     : '<div id="library-player-slot"></div>';
@@ -1675,6 +1698,7 @@ function renderLibraryDetail(data) {
     <div class="library-detail-header">
       <strong>${escHtml(libraryBasename(data.path || ''))}</strong>
       <div class="library-detail-actions">
+        <a class="btn-secondary" id="btn-library-export" href="/api/audio/library/${data.id}/export">Export</a>
         <button type="button" class="btn-secondary" id="btn-library-reanalyze">Re-analyze</button>
         <button type="button" class="btn-secondary" id="btn-library-delete">Delete</button>
       </div>
@@ -1683,9 +1707,11 @@ function renderLibraryDetail(data) {
     <div class="analysis-metrics">
       <div><span class="analysis-metric-label">Path</span><span>${escHtml(data.path || '')}</span></div>
       <div><span class="analysis-metric-label">Key</span><span>${escHtml(String(key))}</span></div>
+      <div><span class="analysis-metric-label">Camelot</span><span>${camelot}</span></div>
       <div><span class="analysis-metric-label">BPM</span><span>${escHtml(String(bpm))}</span></div>
       <div><span class="analysis-metric-label">LUFS</span><span>${escHtml(String(lufs))}</span></div>
       <div><span class="analysis-metric-label">Duration</span><span>${escHtml(String(dur))}</span></div>
+      <div><span class="analysis-metric-label">Issues</span><span>${escHtml(String(issueCount))}</span></div>
       <div><span class="analysis-metric-label">Kind</span><span>${escHtml(data.kind || '')}</span></div>
       <div><span class="analysis-metric-label">Source</span><span>${escHtml(data.source || '')}</span></div>
       <div><span class="analysis-metric-label">Analyzed</span><span>${escHtml(libraryFmtAnalyzed(data.analyzed_at))}</span></div>
@@ -1703,6 +1729,9 @@ function renderLibraryDetail(data) {
   $('#btn-library-reanalyze')?.addEventListener('click', e => {
     e.stopPropagation();
     reanalyzeLibraryItem(data.path);
+  });
+  $('#btn-library-export')?.addEventListener('click', e => {
+    e.stopPropagation();
   });
   if (!fileMissing && window.LibraryPlayer) {
     const slot = $('#library-player-slot');

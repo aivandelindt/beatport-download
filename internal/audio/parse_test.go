@@ -64,6 +64,12 @@ func TestParse_SpectralFeatures(t *testing.T) {
 	if s.BandEnergy["bass"] == 0 {
 		t.Fatalf("band energy: %+v", s.BandEnergy)
 	}
+	if s.QuietRMSDBFS == nil || *s.QuietRMSDBFS != -87.5 {
+		t.Fatalf("quiet rms: %v", s.QuietRMSDBFS)
+	}
+	if s.LoudRMSDBFS == nil || *s.LoudRMSDBFS != -11.1 {
+		t.Fatalf("loud rms: %v", s.LoudRMSDBFS)
+	}
 }
 
 func TestParse_HarmonicAnalysis(t *testing.T) {
@@ -108,8 +114,14 @@ func TestParse_RhythmAnalysis(t *testing.T) {
 	if r.Stability < 0.9 {
 		t.Fatalf("stability: %v", r.Stability)
 	}
+	if r.IBIStdSec == nil || *r.IBIStdSec != 0.012 {
+		t.Fatalf("ibi: %v", r.IBIStdSec)
+	}
 	if len(r.BeatTimesSec) < 3 {
 		t.Fatalf("beat times: %v", r.BeatTimesSec)
+	}
+	if r.BeatTimesSource != audio.ReliabilityMeasured {
+		t.Fatalf("beat source: %q", r.BeatTimesSource)
 	}
 }
 
@@ -141,6 +153,15 @@ func TestParse_FullAnalysis(t *testing.T) {
 	if got.Sections[0].TimeSec < 18 || got.Sections[0].TimeSec > 19 {
 		t.Fatalf("section0 time: %v", got.Sections[0].TimeSec)
 	}
+	if got.Masking == nil || len(got.Masking.BandCrowding) < 3 {
+		t.Fatalf("masking: %+v", got.Masking)
+	}
+	if got.Masking.BandCrowding[2].Label != "CROWDED" {
+		t.Fatalf("crowding label: %+v", got.Masking.BandCrowding[2])
+	}
+	if len(got.Masking.HPCollision) != 1 || len(got.Masking.CrossBleed) != 1 {
+		t.Fatalf("masking extras: %+v", got.Masking)
+	}
 }
 
 func TestParse_CLIFullDump_ExtractsAllSections(t *testing.T) {
@@ -161,6 +182,9 @@ func TestParse_CLIFullDump_ExtractsAllSections(t *testing.T) {
 	}
 	if got.RhythmAnalysis == nil || got.RhythmAnalysis.TempoBPM != 84.0 {
 		t.Fatalf("rhythm: %+v", got.RhythmAnalysis)
+	}
+	if len(got.RhythmAnalysis.BeatTimesSec) < 3 {
+		t.Fatalf("cli beat times: %v", got.RhythmAnalysis.BeatTimesSec)
 	}
 	if got.Percussive == nil {
 		t.Fatal("percussive nil")

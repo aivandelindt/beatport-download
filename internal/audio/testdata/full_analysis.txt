@@ -67,6 +67,20 @@ Stereo width:        0.812 avg, 2.747 max — wide
 Balance:             -0.095 — slightly left
 Mono compatibility:  0.620 avg, 0.117 min — significant mono loss
 
+── Frequency Masking ──
+Crowding (high energy + low contrast):
+  sub_bass     (   20–   60 Hz): 0.210  clean
+  bass         (   60–  250 Hz): 0.420  moderate
+  low_mid      (  250–  500 Hz): 0.610  CROWDED
+  mid          (  500– 2000 Hz): 0.180  clean
+  upper_mid    ( 2000– 4000 Hz): 0.090  clean
+  presence     ( 4000– 6000 Hz): 0.050  clean
+  brilliance   ( 6000–20000 Hz): 0.030  clean
+H/P collision (harmonic + percussive fighting):
+  bass        : 0.450  moderate
+Cross-band bleed:
+  bass↔low_mid: 0.820  HIGH
+
 ── Section Boundaries ──
   Working BPM:     84 (confidence: 0.32)
   Boundaries:      2

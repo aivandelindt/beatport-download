@@ -31,16 +31,17 @@ type Record struct {
 }
 
 type ListItem struct {
-	ID             uint      `json:"id"`
-	Path           string    `json:"path"`
-	Kind           string    `json:"kind"`
-	Key            string    `json:"key"`
-	Mode           string    `json:"mode"`
-	TempoBPM       float64   `json:"tempo_bpm"`
-	LUFSIntegrated float64   `json:"lufs_integrated"`
-	DurationSec    float64   `json:"duration_sec"`
+	ID             uint     `json:"id"`
+	Path           string   `json:"path"`
+	Kind           string   `json:"kind"`
+	Key            string   `json:"key"`
+	Mode           string   `json:"mode"`
+	Camelot        string   `json:"camelot,omitempty"`
+	TempoBPM       *float64 `json:"tempo_bpm"`
+	LUFSIntegrated *float64 `json:"lufs_integrated"`
+	DurationSec    *float64 `json:"duration_sec"`
 	AnalyzedAt     time.Time `json:"analyzed_at"`
-	Source         string    `json:"source"`
+	Source         string   `json:"source"`
 }
 
 type ListFilter struct {
@@ -265,16 +266,30 @@ func allowedListSort(sort string) string {
 }
 
 func listItemFromRow(row AnalysisResult) ListItem {
-	return ListItem{
-		ID:             row.ID,
-		Path:           row.Path,
-		Kind:           row.Kind,
-		Key:            row.Key,
-		Mode:           row.Mode,
-		TempoBPM:       row.TempoBPM,
-		LUFSIntegrated: row.LUFSIntegrated,
-		DurationSec:    row.DurationSec,
-		AnalyzedAt:     row.AnalyzedAt,
-		Source:         row.Source,
+	item := ListItem{
+		ID:         row.ID,
+		Path:       row.Path,
+		Kind:       row.Kind,
+		Key:        row.Key,
+		Mode:       row.Mode,
+		AnalyzedAt: row.AnalyzedAt,
+		Source:     row.Source,
 	}
+	item.Camelot = audio.CamelotFromKeyMode(row.Key, row.Mode)
+	switch row.Kind {
+	case audio.KindFullAnalysis, audio.KindRhythmAnalysis:
+		t := row.TempoBPM
+		item.TempoBPM = &t
+	}
+	switch row.Kind {
+	case audio.KindFullAnalysis, audio.KindSpectralFeatures:
+		l := row.LUFSIntegrated
+		item.LUFSIntegrated = &l
+	}
+	switch row.Kind {
+	case audio.KindFullAnalysis, audio.KindAudioInfo, audio.KindSpectralFeatures:
+		d := row.DurationSec
+		item.DurationSec = &d
+	}
+	return item
 }
