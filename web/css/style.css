@@ -772,7 +772,7 @@ body {
 .library-spectrogram {
   width: 100%;
   height: auto;
-  max-height: 220px;
+  max-height: 512px;
   object-fit: fill;
   display: block;
   border-radius: var(--radius-sm);
