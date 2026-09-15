@@ -93,18 +93,43 @@ type PitchClass struct {
 }
 
 type RhythmAnalysis struct {
-	TempoBPM           float64   `json:"tempo_bpm"`
-	Confidence         float64   `json:"confidence"`
-	BeatsDetected      int       `json:"beats_detected"`
-	MeanTempoBPM       float64   `json:"mean_tempo_bpm"`
-	MedianTempoBPM     float64   `json:"median_tempo_bpm"`
-	Stability          float64   `json:"stability"`
-	IBIStdSec          *float64  `json:"ibi_std_sec,omitempty"`
-	BeatTimesSec       []float64 `json:"beat_times_sec,omitempty"`
-	BeatTimesSource    string    `json:"beat_times_source,omitempty"` // "measured"
-	BeatGridEstimated  []float64 `json:"beat_grid_estimated,omitempty"`
-	TempoHalfBPM       float64   `json:"tempo_half_bpm,omitempty"`
-	TempoDoubleBPM     float64   `json:"tempo_double_bpm,omitempty"`
+	TempoBPM          float64   `json:"tempo_bpm"`
+	Confidence        float64   `json:"confidence"`
+	BeatsDetected     int       `json:"beats_detected"`
+	MeanTempoBPM      float64   `json:"mean_tempo_bpm"`
+	MedianTempoBPM    float64   `json:"median_tempo_bpm"`
+	Stability         float64   `json:"stability"`
+	IBIStdSec         *float64  `json:"ibi_std_sec,omitempty"`
+	BeatTimesSec      []float64 `json:"beat_times_sec,omitempty"`
+	BeatTimesSource   string    `json:"beat_times_source,omitempty"` // "measured"
+	BeatsComplete     bool      `json:"beats_complete,omitempty"`    // len(BeatTimesSec)==BeatsDetected
+	BeatGridEstimated []float64 `json:"beat_grid_estimated,omitempty"`
+	TempoHalfBPM      float64   `json:"tempo_half_bpm,omitempty"`
+	TempoDoubleBPM    float64   `json:"tempo_double_bpm,omitempty"`
+}
+
+// ChordSegment is an estimated chord label over a time range.
+type ChordSegment struct {
+	StartTime     float64 `json:"start_time"`
+	EndTime       float64 `json:"end_time"`
+	Label         string  `json:"label"`
+	Confidence    float64 `json:"confidence,omitempty"`
+	ChannelOrStem string  `json:"channel_or_stem,omitempty"`
+	Method        string  `json:"method,omitempty"`
+	Reliability   string  `json:"reliability"` // estimated
+}
+
+// NoteEvent is an estimated MIDI note from transcription.
+type NoteEvent struct {
+	StartTime     float64 `json:"start_time"`
+	EndTime       float64 `json:"end_time"`
+	MIDI          int     `json:"midi"`
+	Name          string  `json:"name,omitempty"`
+	Velocity      float64 `json:"velocity,omitempty"`
+	Confidence    float64 `json:"confidence,omitempty"`
+	ChannelOrStem string  `json:"channel_or_stem,omitempty"`
+	Method        string  `json:"method,omitempty"`
+	Reliability   string  `json:"reliability"` // estimated
 }
 
 type Percussive struct {

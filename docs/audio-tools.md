@@ -67,20 +67,37 @@ Table columns: path (basename), key (with Camelot when known), BPM, LUFS, kind, 
 
 Row click opens an **inspector**:
 
-- Mix play + waveform with **measured** (yellow) and **estimated** beat ticks, section labels
+- Mix play + waveform with **measured** (yellow) beat ticks; **estimated** ticks only when the measured list is incomplete; section + chord labels
 - Within-track **energy** strip (custom 0–100 RMS percentile — labeled as such)
+- **VU-style** timeline strip + live needle during playback (0 VU = −18 dBFS; labeled **not** IEC 60268-17)
 - Log-frequency **spectrogram** PNG (`ffmpeg showspectrumpic`)
 - Camelot, half/double BPM, clipping/masking **issues** (click Seek)
 - Optional stem waveforms when `<basename>_stems/` exists
-- Actions: **Export** (zip: report.md, analysis.json, CSVs, spectrogram), **Re-analyze**, **Delete**
+- **Estimate chords** / **Estimate notes** (optional MIR Python worker → `<basename>_mir/`)
+- Actions: **Export** (zip: report.md, analysis.json, CSVs, beats.json, chords/notes when present, spectrogram), **Re-analyze**, **Delete**
 
-Post-parse enrich (on analyze): Camelot from key+mode, half/double BPM, estimated beat grid, file SHA-256, true-peak/masking findings. On-demand research (Library open): ffmpeg RMS/LUFS timelines, clipping scan, labeled sections heuristic.
+Post-parse enrich (on analyze): Camelot from key+mode, half/double BPM, estimated beat grid (skipped when `beats_complete`), file SHA-256, true-peak/masking findings. On-demand research (Library open): ffmpeg RMS/LUFS/VU-style timelines, clipping scan, labeled sections heuristic, merge MIR artifacts.
 
 **Section labels** (`intro`/`verse`/`chorus`/`build`/`drop`/`breakdown`/`outro`/`unknown`) combine novelty boundaries from the analyzer with RMS vs median — never “loudest = chorus”. Reliability is `estimated` or `low`.
 
-**Beat grid honesty:** analyzer text prints at most ~10–20 measured beat times; the rest of the grid is extrapolated from median BPM and marked estimated.
+**Beat grid honesty:** rebuilt analyzer prints `Beat times:` with **all** measured times (`beats_complete` when count matches). Older binaries that only print first N still get an extrapolated estimated grid.
 
-**Deferred** (reported as not performed): MIDI/notes, chord timeline, VU meter, waveform editing, Python workers, patching audio-analyzer-rs for JSON.
+**VU-style:** digital linear-amplitude one-pole (τ ≈ 65.1 ms). Display calibration 0 VU = −18 dBFS. Always labeled VU-style — not a standards-compliant VU meter.
+
+**MIR (optional):** `scripts/mir/worker.py` — librosa chroma major/minor chord templates; Spotify Basic Pitch for notes/MIDI. Configure `mir_python_path` / `mir_worker_path`. Missing tools → buttons disabled; research keeps `chord_timeline` / `midi_transcription` in `not_performed`.
+
+**MIR install (macOS):** Basic Pitch only supports Python **3.10–3.11**. On Python ≥3.12 (including system/mise `latest`), `pip install basic-pitch` tries to pull `tensorflow-macos`, which has no wheels — that is the conflict you hit. Use a dedicated 3.11 venv instead:
+
+```bash
+mise install python@3.11   # or brew install python@3.11
+python3.11 -m venv .venv-mir
+.venv-mir/bin/pip install -U pip
+.venv-mir/bin/pip install -r scripts/mir/requirements.txt
+```
+
+Then set Settings → **MIR Python path** to the absolute path of `.venv-mir/bin/python`. Chords-only (no notes): `pip install -r scripts/mir/requirements-chords.txt` on any recent Python.
+
+**Still deferred** (reported as not performed): waveform editing, mashups, patching audio-analyzer-rs for JSON.
 
 Waveform peaks and spectrograms are cached under `~/.config/beatportdl-ui/cache/audio-viz/` (keyed by path+size+mtime). Original files are never modified by research/export.
 
@@ -107,17 +124,17 @@ Two-pass ffmpeg EBU R128 `loudnorm`. Defaults: I=-14 LUFS, TP=-1.5 dBTP, LRA=11.
 ## Architecture
 
 ```
-Audio tab ──POST /api/audio/{analyze|stems|normalize}──► Job (kind=…)
+Audio tab ──POST /api/audio/{analyze|stems|normalize|chords|notes}──► Job (kind=…)
          └──GET /api/audio/library──────────────────────► analysis store
                                                               │
                      ┌────────────────────────────────────────┤
                      ▼                                        ▼
               WebSocket job_update                     Queue UI
                      │
-        ┌────────────┼────────────┬───────────────┐
-        ▼            ▼            ▼               ▼
-   internal/audio  stem-splitter  ffmpeg   internal/audio/store
-   Analyze()       SplitStems()   Normalize()  (GORM SQLite | Postgres)
+        ┌────────────┼────────────┬───────────────┬────────────┐
+        ▼            ▼            ▼               ▼            ▼
+   internal/audio  stem-splitter  ffmpeg   mir worker   store
+   Analyze()       SplitStems()   Normalize()  chords/notes
         │                                        ▲ cache get/upsert
    mcp-server | cli  ──text──► Parse() ──► []Analysis JSON
 ```
@@ -128,14 +145,15 @@ Audio tab ──POST /api/audio/{analyze|stems|normalize}──► Job (kind=…
 | Analysis store | `internal/audio/store/` (GORM; default SQLite at `{configDir}/analysis.db`) |
 | HTTP | `internal/server/audio_handlers.go` |
 | Routes | `internal/server/server.go` |
-| UI | `web/index.html`, `web/js/app.js` (Audio view: Analyze \| Stems \| Normalize \| Library) |
+| UI | `web/index.html`, `web/js/app.js`, `web/js/library-player.js` (Audio view: Analyze \| Stems \| Normalize \| Library) |
+| MIR worker | `scripts/mir/worker.py` + `scripts/mir/requirements.txt` |
 | Config | `internal/config/config.go` → `~/.config/beatportdl-ui/config.yml` |
 
 ### Job kinds
 
-`download` | `analyze` | `stems` | `normalize`
+`download` | `analyze` | `stems` | `normalize` | `chords` | `notes`
 
-Analyze jobs attach `analysis` on the job payload when done. Stems/normalize attach output paths to `files` (ZIP via existing job ZIP endpoint when files exist).
+Analyze jobs attach `analysis` on the job payload when done. Stems/normalize attach output paths to `files` (ZIP via existing job ZIP endpoint when files exist). Chords/notes write `<basename>_mir/`.
 
 ### File listing
 
@@ -149,16 +167,18 @@ Configured path → next to the running executable → repo-relative `third_part
 
 | Method | Path | Body / query |
 |--------|------|--------------|
-| GET | `/api/audio/tools` | — binary/ffmpeg presence; includes `"analysis_store": true/false` |
+| GET | `/api/audio/tools` | — binary/ffmpeg/MIR presence; includes `"analysis_store"`, `"librosa"`, `"basic_pitch"` |
 | POST | `/api/audio/analyze` | `{ "path", "kind", "backend", "force?" }` → `202 { "job_id" }` |
 | POST | `/api/audio/normalize` | `{ "path", "overwrite", "target_lufs?" }` |
 | POST | `/api/audio/stems` | `{ "path", "provider" }` |
+| POST | `/api/audio/chords` | `{ "path", "force?" }` → `202 { "job_id" }` |
+| POST | `/api/audio/notes` | `{ "path", "sources?", "force?" }` → `202 { "job_id" }` |
 | GET | `/api/audio/library` | `?q=&key=&bpm_min=&bpm_max=&limit=&offset=` → `{ "items", "total" }`; `503` if store unavailable |
 | GET | `/api/audio/library/{id}` | Full row + `"analysis"`; `"camelot"`; `"issues"`; null-safe tempo/LUFS/duration; `"stems"`; `"file_missing"` |
 | GET | `/api/audio/library/{id}/waveforms` | Mix (+ stem) peak arrays for canvas; needs ffmpeg |
-| GET | `/api/audio/library/{id}/research` | On-demand RMS/LUFS/energy timelines, beat grid, labeled sections, clipping, findings |
+| GET | `/api/audio/library/{id}/research` | On-demand RMS/LUFS/energy/VU-style timelines, beat grid, chords/notes, labeled sections, clipping, findings |
 | GET | `/api/audio/library/{id}/spectrogram` | `image/png` log-frequency spectrogram (cached) |
-| GET | `/api/audio/library/{id}/export` | Zip of report.md, analysis.json, sections/beats/issues CSV, spectrogram |
+| GET | `/api/audio/library/{id}/export` | Zip of report.md, analysis.json, sections/beats/issues CSV, beats.json, chords/notes when present, spectrogram |
 | GET | `/api/audio/library/{id}/file` | Stream mix audio (`Accept-Ranges`) |
 | GET | `/api/audio/library/{id}/stems/{stem}` | Stream `vocals` \| `drums` \| `bass` \| `other` WAV |
 | DELETE | `/api/audio/library/{id}` | Remove row; `{ "status": "deleted" }` |
@@ -174,6 +194,8 @@ Empty `path` uses `output_dir` from settings.
 | `audio_analyzer_cli_path` | _(auto-detect)_ |
 | `stem_splitter_path` | _(auto-detect)_ |
 | `stem_provider` | `auto` |
+| `mir_python_path` | _(python3 on PATH)_ |
+| `mir_worker_path` | _(scripts/mir/worker.py)_ |
 | `normalize_target_lufs` | `-14` |
 | `normalize_true_peak` | `-1.5` |
 | `normalize_lra` | `11` |

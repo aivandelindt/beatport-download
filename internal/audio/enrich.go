@@ -52,13 +52,21 @@ func EnrichAnalysis(ctx context.Context, a *Analysis, filePath string) error {
 
 	if a.RhythmAnalysis != nil {
 		r := a.RhythmAnalysis
+		if r.BeatsDetected > 0 && len(r.BeatTimesSec) == r.BeatsDetected {
+			r.BeatsComplete = true
+		}
 		bpm := r.MedianTempoBPM
 		if bpm <= 0 {
 			bpm = r.TempoBPM
 		}
 		if bpm > 0 {
 			r.TempoHalfBPM, r.TempoDoubleBPM = TempoAlternatives(bpm)
-			r.BeatGridEstimated = EstimateBeatGrid(r.BeatTimesSec, bpm, duration)
+			// When we have the full measured list, skip redundant extrapolated grid.
+			if !r.BeatsComplete {
+				r.BeatGridEstimated = EstimateBeatGrid(r.BeatTimesSec, bpm, duration)
+			} else {
+				r.BeatGridEstimated = nil
+			}
 		}
 	}
 

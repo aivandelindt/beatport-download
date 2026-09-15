@@ -1709,6 +1709,10 @@ func jobKindLabel(job *Job) string {
 		return "Stems"
 	case "normalize":
 		return "Normalize"
+	case "chords":
+		return "Chords"
+	case "notes":
+		return "Notes"
 	default:
 		return "Download"
 	}

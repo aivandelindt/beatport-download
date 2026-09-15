@@ -108,7 +108,7 @@ func TestParse_RhythmAnalysis(t *testing.T) {
 	if r.TempoBPM != 84.0 {
 		t.Fatalf("tempo: %v", r.TempoBPM)
 	}
-	if r.BeatsDetected != 69 {
+	if r.BeatsDetected != 5 {
 		t.Fatalf("beats: %d", r.BeatsDetected)
 	}
 	if r.Stability < 0.9 {
@@ -117,11 +117,37 @@ func TestParse_RhythmAnalysis(t *testing.T) {
 	if r.IBIStdSec == nil || *r.IBIStdSec != 0.012 {
 		t.Fatalf("ibi: %v", r.IBIStdSec)
 	}
-	if len(r.BeatTimesSec) < 3 {
+	if len(r.BeatTimesSec) != 5 {
 		t.Fatalf("beat times: %v", r.BeatTimesSec)
+	}
+	if !r.BeatsComplete {
+		t.Fatal("expected beats_complete")
 	}
 	if r.BeatTimesSource != audio.ReliabilityMeasured {
 		t.Fatalf("beat source: %q", r.BeatTimesSource)
+	}
+}
+
+func TestParse_RhythmAnalysis_FirstBeatsFallback(t *testing.T) {
+	t.Parallel()
+	raw := `Rhythm Analysis: /x.mp3
+Estimated Tempo: 120.0 BPM (confidence: 0.9)
+Detected Beats: 100
+First 20 beats: 0.50s, 1.00s, 1.50s
+`
+	got, err := audio.Parse(audio.KindRhythmAnalysis, raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := got.RhythmAnalysis
+	if r == nil {
+		t.Fatal("nil")
+	}
+	if len(r.BeatTimesSec) != 3 {
+		t.Fatalf("times: %v", r.BeatTimesSec)
+	}
+	if r.BeatsComplete {
+		t.Fatal("should not be complete when truncated")
 	}
 }
 

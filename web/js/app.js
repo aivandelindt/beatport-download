@@ -1215,6 +1215,8 @@ function kindLabel(kind) {
     case 'analyze': return 'Analyze';
     case 'stems': return 'Stems';
     case 'normalize': return 'Normalize';
+    case 'chords': return 'Chords';
+    case 'notes': return 'Notes';
     default: return 'Download';
   }
 }
@@ -1243,7 +1245,12 @@ function statusIcon(status) {
 
 function jobSubText(job) {
   const kind = job.kind || 'download';
-  const verb = kind === 'analyze' ? 'Analyzing' : kind === 'stems' ? 'Splitting' : kind === 'normalize' ? 'Normalizing' : 'Downloading';
+  const verb = kind === 'analyze' ? 'Analyzing'
+    : kind === 'stems' ? 'Splitting'
+    : kind === 'normalize' ? 'Normalizing'
+    : kind === 'chords' ? 'Estimating chords'
+    : kind === 'notes' ? 'Estimating notes'
+    : 'Downloading';
   const doneVerb = kind === 'download' ? 'downloaded' : 'done';
   if (job.status === 'pending')  return 'Waiting…';
   if (job.status === 'running')  return `${verb}… ${job.completed + job.failed} / ${job.total || '?'} done`;
@@ -1442,6 +1449,15 @@ async function loadAudioToolsStatus() {
     }
     if (!data.ffmpeg) {
       msgs.push('ffmpeg not found on PATH (required for normalize and tags).');
+    }
+    state.mirTools = {
+      librosa: !!data.librosa,
+      basic_pitch: !!data.basic_pitch,
+      mir_ok: !!data.mir_ok,
+      mir_worker: !!data.mir_worker,
+    };
+    if (data.mir_worker && !data.librosa && !data.basic_pitch) {
+      msgs.push('MIR worker found but librosa/basic-pitch missing. Install <code>scripts/mir/requirements.txt</code> into your MIR Python.');
     }
     state.libraryStoreAvailable = !!data.analysis_store;
     if (!data.analysis_store) {
@@ -1699,10 +1715,13 @@ function renderLibraryDetail(data) {
       <strong>${escHtml(libraryBasename(data.path || ''))}</strong>
       <div class="library-detail-actions">
         <a class="btn-secondary" id="btn-library-export" href="/api/audio/library/${data.id}/export">Export</a>
+        <button type="button" class="btn-secondary" id="btn-library-chords" ${fileMissing ? 'disabled' : ''}>Estimate chords</button>
+        <button type="button" class="btn-secondary" id="btn-library-notes" ${fileMissing ? 'disabled' : ''}>Estimate notes</button>
         <button type="button" class="btn-secondary" id="btn-library-reanalyze">Re-analyze</button>
         <button type="button" class="btn-secondary" id="btn-library-delete">Delete</button>
       </div>
     </div>
+    <p class="field-hint" id="library-mir-hint" style="display:none"></p>
     ${playerSlot}
     <div class="analysis-metrics">
       <div><span class="analysis-metric-label">Path</span><span>${escHtml(data.path || '')}</span></div>
@@ -1730,14 +1749,71 @@ function renderLibraryDetail(data) {
     e.stopPropagation();
     reanalyzeLibraryItem(data.path);
   });
+  $('#btn-library-chords')?.addEventListener('click', e => {
+    e.stopPropagation();
+    runLibraryMIRJob('chords', data.path);
+  });
+  $('#btn-library-notes')?.addEventListener('click', e => {
+    e.stopPropagation();
+    runLibraryMIRJob('notes', data.path);
+  });
   $('#btn-library-export')?.addEventListener('click', e => {
     e.stopPropagation();
   });
+  syncLibraryMIRButtons();
   if (!fileMissing && window.LibraryPlayer) {
     const slot = $('#library-player-slot');
     if (slot) {
       window.LibraryPlayer.mount(slot, { id: data.id, stems: data.stems || {} });
     }
+  }
+}
+
+function syncLibraryMIRButtons() {
+  const mir = state.mirTools || {};
+  const chordsBtn = $('#btn-library-chords');
+  const notesBtn = $('#btn-library-notes');
+  const hint = $('#library-mir-hint');
+  const msgs = [];
+  if (chordsBtn) {
+    const ok = !!mir.librosa;
+    chordsBtn.disabled = chordsBtn.disabled || !ok;
+    if (!ok) msgs.push('Chords need librosa (configure MIR Python in Settings).');
+  }
+  if (notesBtn) {
+    const ok = !!mir.basic_pitch;
+    notesBtn.disabled = notesBtn.disabled || !ok;
+    if (!ok) msgs.push('Notes need basic-pitch (configure MIR Python in Settings).');
+  }
+  if (hint) {
+    if (msgs.length) {
+      hint.style.display = '';
+      hint.textContent = msgs.join(' ');
+    } else {
+      hint.style.display = 'none';
+      hint.textContent = '';
+    }
+  }
+}
+
+async function runLibraryMIRJob(kind, path) {
+  if (!path) return;
+  const url = kind === 'chords' ? '/api/audio/chords' : '/api/audio/notes';
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path, force: true }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast(data.error || (kind + ' failed'), 'error');
+      return;
+    }
+    toast((kind === 'chords' ? 'Chords' : 'Notes') + ' job queued', 'ok');
+    document.querySelector('.nav-item[data-view="queue"]')?.click();
+  } catch (e) {
+    toast(e.message || (kind + ' failed'), 'error');
   }
 }
 

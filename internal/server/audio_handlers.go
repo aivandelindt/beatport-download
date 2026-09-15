@@ -32,6 +32,11 @@ func (s *Server) handleAudioTools(w http.ResponseWriter, r *http.Request) {
 	mcp, cli := audio.ResolveAnalyzerBins(cfg.AudioAnalyzerMCPPath, cfg.AudioAnalyzerCLIPath)
 	stem := audio.ResolveStemSplitterBin(cfg.StemSplitterPath)
 	_, ffmpegErr := exec.LookPath("ffmpeg")
+	mirPython := audio.ResolveMIRPython(cfg.MIRPythonPath)
+	mirWorker := audio.ResolveMIRWorker(cfg.MIRWorkerPath)
+	healthCtx, healthCancel := context.WithTimeout(r.Context(), 3*time.Second)
+	health := audio.ProbeMIRHealth(healthCtx, mirPython, mirWorker)
+	healthCancel()
 
 	respond(w, 200, map[string]interface{}{
 		"analyzer_mcp":          mcp != "",
@@ -43,6 +48,13 @@ func (s *Server) handleAudioTools(w http.ResponseWriter, r *http.Request) {
 		"ffmpeg":                ffmpegErr == nil,
 		"stem_provider_default": audio.DefaultStemProvider(),
 		"analysis_store":        s.analysisStore != nil,
+		"mir_python":            mirPython != "",
+		"mir_python_path":       mirPython,
+		"mir_worker":            mirWorker != "",
+		"mir_worker_path":       mirWorker,
+		"librosa":               health.Librosa,
+		"basic_pitch":           health.BasicPitch,
+		"mir_ok":                health.OK,
 	})
 }
 
@@ -482,6 +494,203 @@ func (s *Server) runStemsJob(ctx context.Context, job *Job, files []string, prov
 	s.broadcastJob(job)
 }
 
+// POST /api/audio/chords
+func (s *Server) handleAudioChords(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Path  string `json:"path"`
+		Force bool   `json:"force"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondErr(w, 400, "invalid JSON")
+		return
+	}
+	s.cfgMu.RLock()
+	cfg := *s.cfg
+	s.cfgMu.RUnlock()
+
+	path := req.Path
+	if path == "" {
+		path = cfg.OutputDir
+	}
+	files, err := audio.ListAudioFiles(r.Context(), path)
+	if err != nil {
+		respondErr(w, 400, err.Error())
+		return
+	}
+	if len(files) == 0 {
+		respondErr(w, 400, "no audio files found")
+		return
+	}
+
+	jobID := uuid.New().String()[:8]
+	job := &Job{
+		ID:        jobID,
+		URL:       path,
+		Name:      filepath.Base(path),
+		Kind:      "chords",
+		Status:    "pending",
+		Total:     len(files),
+		CreatedAt: time.Now(),
+	}
+	s.jobsMu.Lock()
+	s.jobs[jobID] = job
+	s.jobsMu.Unlock()
+	s.broadcastJob(job)
+
+	ctx := context.WithoutCancel(r.Context())
+	go s.runChordsJob(ctx, job, files, req.Force, &cfg)
+	respond(w, 202, map[string]string{"job_id": jobID})
+}
+
+func (s *Server) runChordsJob(ctx context.Context, job *Job, files []string, force bool, cfg *config.Config) {
+	job.Status = "running"
+	s.broadcastJob(job)
+
+	python := audio.ResolveMIRPython(cfg.MIRPythonPath)
+	worker := audio.ResolveMIRWorker(cfg.MIRWorkerPath)
+
+	for i, file := range files {
+		fileCtx, cancel := context.WithTimeout(ctx, 15*time.Minute)
+		srcPath, stem := audio.ChordSourcePath(file)
+		s.hub.Broadcast(WSMessage{
+			Type: "track_progress",
+			Payload: ProgressPayload{
+				JobID: job.ID, TrackID: i + 1, TrackTitle: filepath.Base(file),
+				Status: "downloading", Progress: 0, Message: "estimating chords (" + stem + ")",
+			},
+		})
+		res, err := audio.RunMIRJob(fileCtx, python, worker, audio.MIRJobRequest{
+			Task:      "chords",
+			Input:     srcPath,
+			OutDir:    audio.DefaultMIRDir(file),
+			Force:     force,
+			Sources:   []string{stem},
+			InputStem: stem,
+		})
+		_ = res
+		cancel()
+
+		track := TrackSummary{ID: i + 1, Title: filepath.Base(file), Status: "done"}
+		if err != nil {
+			job.Failed++
+			track.Status = "error"
+			track.Message = err.Error()
+		} else {
+			job.Completed++
+			track.Message = audio.DefaultMIRDir(file)
+		}
+		job.Tracks = append(job.Tracks, track)
+		s.broadcastJob(job)
+	}
+
+	if job.Failed > 0 && job.Completed == 0 {
+		job.Status = "error"
+	} else {
+		job.Status = "done"
+	}
+	s.broadcastJob(job)
+}
+
+// POST /api/audio/notes
+func (s *Server) handleAudioNotes(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Path    string   `json:"path"`
+		Sources []string `json:"sources"`
+		Force   bool     `json:"force"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondErr(w, 400, "invalid JSON")
+		return
+	}
+	s.cfgMu.RLock()
+	cfg := *s.cfg
+	s.cfgMu.RUnlock()
+
+	path := req.Path
+	if path == "" {
+		path = cfg.OutputDir
+	}
+	files, err := audio.ListAudioFiles(r.Context(), path)
+	if err != nil {
+		respondErr(w, 400, err.Error())
+		return
+	}
+	if len(files) == 0 {
+		respondErr(w, 400, "no audio files found")
+		return
+	}
+
+	jobID := uuid.New().String()[:8]
+	job := &Job{
+		ID:        jobID,
+		URL:       path,
+		Name:      filepath.Base(path),
+		Kind:      "notes",
+		Status:    "pending",
+		Total:     len(files),
+		CreatedAt: time.Now(),
+	}
+	s.jobsMu.Lock()
+	s.jobs[jobID] = job
+	s.jobsMu.Unlock()
+	s.broadcastJob(job)
+
+	ctx := context.WithoutCancel(r.Context())
+	go s.runNotesJob(ctx, job, files, req.Sources, req.Force, &cfg)
+	respond(w, 202, map[string]string{"job_id": jobID})
+}
+
+func (s *Server) runNotesJob(ctx context.Context, job *Job, files []string, sources []string, force bool, cfg *config.Config) {
+	job.Status = "running"
+	s.broadcastJob(job)
+
+	python := audio.ResolveMIRPython(cfg.MIRPythonPath)
+	worker := audio.ResolveMIRWorker(cfg.MIRWorkerPath)
+
+	for i, file := range files {
+		fileCtx, cancel := context.WithTimeout(ctx, 30*time.Minute)
+		srcFiles := audio.NoteSourcePaths(file, sources)
+		s.hub.Broadcast(WSMessage{
+			Type: "track_progress",
+			Payload: ProgressPayload{
+				JobID: job.ID, TrackID: i + 1, TrackTitle: filepath.Base(file),
+				Status: "downloading", Progress: 0, Message: "estimating notes (Basic Pitch)",
+			},
+		})
+		pairs := make([]audio.MIRSourceFile, 0, len(srcFiles))
+		for _, sp := range srcFiles {
+			pairs = append(pairs, audio.MIRSourceFile{Path: sp.Path, Stem: sp.Stem})
+		}
+		_, err := audio.RunMIRJob(fileCtx, python, worker, audio.MIRJobRequest{
+			Task:        "notes",
+			Input:       file,
+			OutDir:      audio.DefaultMIRDir(file),
+			Force:       force,
+			SourceFiles: pairs,
+		})
+		cancel()
+
+		track := TrackSummary{ID: i + 1, Title: filepath.Base(file), Status: "done"}
+		if err != nil {
+			job.Failed++
+			track.Status = "error"
+			track.Message = err.Error()
+		} else {
+			job.Completed++
+			track.Message = audio.DefaultMIRDir(file)
+		}
+		job.Tracks = append(job.Tracks, track)
+		s.broadcastJob(job)
+	}
+
+	if job.Failed > 0 && job.Completed == 0 {
+		job.Status = "error"
+	} else {
+		job.Status = "done"
+	}
+	s.broadcastJob(job)
+}
+
 // GET /api/audio/library
 func (s *Server) handleAudioLibraryList(w http.ResponseWriter, r *http.Request) {
 	if s.analysisStore == nil {
@@ -687,11 +896,12 @@ func (s *Server) handleAudioLibraryExport(w http.ResponseWriter, r *http.Request
 		research = audio.ResearchBundle{
 			Path:         rec.Path,
 			Issues:       analysis.Issues,
-			NotPerformed: []string{"ffmpeg_timelines", "spectrogram", "midi_transcription"},
+			NotPerformed: []string{"ffmpeg_timelines", "spectrogram", "midi_transcription", "chord_timeline", "vu_meter", "waveform_editing"},
 		}
 		if analysis.HarmonicAnalysis != nil {
 			research.Camelot = analysis.HarmonicAnalysis.Camelot
 		}
+		audio.MergeMIRArtifacts(&research, rec.Path)
 	}
 
 	name := audio.BasenameSafe(rec.Path) + "-research.zip"

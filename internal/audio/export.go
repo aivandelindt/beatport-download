@@ -17,31 +17,36 @@ import (
 
 // ResearchBundle is the on-demand research payload for the Library inspector.
 type ResearchBundle struct {
-	Path            string           `json:"path"`
-	Camelot         string           `json:"camelot,omitempty"`
-	TempoBPM        float64          `json:"tempo_bpm,omitempty"`
-	TempoHalfBPM    float64          `json:"tempo_half_bpm,omitempty"`
-	TempoDoubleBPM  float64          `json:"tempo_double_bpm,omitempty"`
-	BeatTimesMeasured []float64      `json:"beat_times_measured,omitempty"`
-	BeatGridEstimated []float64      `json:"beat_grid_estimated,omitempty"`
-	LabeledSections []LabeledSection `json:"labeled_sections,omitempty"`
-	Issues          []Finding        `json:"issues,omitempty"`
-	RMS             TimelineSeries   `json:"rms"`
-	LUFS            TimelineSeries   `json:"lufs"`
-	Energy          EnergyTimeline   `json:"energy"`
-	Clipping        []ClipEvent      `json:"clipping,omitempty"`
-	ClippingStatus  string           `json:"clipping_status"`
-	ClippingError   string           `json:"clipping_error,omitempty"`
-	SpectrogramURL  string           `json:"spectrogram_url,omitempty"`
-	NotPerformed    []string         `json:"not_performed"`
+	Path              string           `json:"path"`
+	Camelot           string           `json:"camelot,omitempty"`
+	TempoBPM          float64          `json:"tempo_bpm,omitempty"`
+	TempoHalfBPM      float64          `json:"tempo_half_bpm,omitempty"`
+	TempoDoubleBPM    float64          `json:"tempo_double_bpm,omitempty"`
+	BeatTimesMeasured []float64        `json:"beat_times_measured,omitempty"`
+	BeatGridEstimated []float64        `json:"beat_grid_estimated,omitempty"`
+	BeatsComplete     bool             `json:"beats_complete,omitempty"`
+	LabeledSections   []LabeledSection `json:"labeled_sections,omitempty"`
+	Issues            []Finding        `json:"issues,omitempty"`
+	RMS               TimelineSeries   `json:"rms"`
+	LUFS              TimelineSeries   `json:"lufs"`
+	Energy            EnergyTimeline   `json:"energy"`
+	VU                VUTimeline       `json:"vu"`
+	Clipping          []ClipEvent      `json:"clipping,omitempty"`
+	ClippingStatus    string           `json:"clipping_status"`
+	ClippingError     string           `json:"clipping_error,omitempty"`
+	Chords         []ChordSegment `json:"chords,omitempty"`
+	Notes          []NoteEvent    `json:"notes,omitempty"`
+	HasNotesMIDI   bool           `json:"has_notes_midi,omitempty"`
+	SpectrogramURL string         `json:"spectrogram_url,omitempty"`
+	NotPerformed   []string       `json:"not_performed"`
 }
 
 // BuildResearch runs ffmpeg timelines/clipping and merges with stored analysis.
 func BuildResearch(ctx context.Context, a Analysis, filePath string) (ResearchBundle, error) {
 	EnsureCamelot(&a)
 	b := ResearchBundle{
-		Path:         filePath,
-		NotPerformed: []string{"midi_transcription", "chord_timeline", "vu_meter", "waveform_editing"},
+		Path:           filePath,
+		NotPerformed:   []string{"midi_transcription", "chord_timeline", "waveform_editing"},
 		ClippingStatus: ReliabilityNotPerf,
 	}
 	if a.HarmonicAnalysis != nil {
@@ -53,8 +58,9 @@ func BuildResearch(ctx context.Context, a Analysis, filePath string) (ResearchBu
 		b.TempoHalfBPM = r.TempoHalfBPM
 		b.TempoDoubleBPM = r.TempoDoubleBPM
 		b.BeatTimesMeasured = r.BeatTimesSec
+		b.BeatsComplete = r.BeatsComplete || (r.BeatsDetected > 0 && len(r.BeatTimesSec) == r.BeatsDetected)
 		b.BeatGridEstimated = r.BeatGridEstimated
-		if len(b.BeatGridEstimated) == 0 {
+		if !b.BeatsComplete && len(b.BeatGridEstimated) == 0 {
 			bpm := r.MedianTempoBPM
 			if bpm <= 0 {
 				bpm = r.TempoBPM
@@ -66,6 +72,9 @@ func BuildResearch(ctx context.Context, a Analysis, filePath string) (ResearchBu
 			b.BeatGridEstimated = EstimateBeatGrid(r.BeatTimesSec, bpm, dur)
 			b.TempoHalfBPM, b.TempoDoubleBPM = TempoAlternatives(bpm)
 		}
+		if b.BeatsComplete {
+			b.BeatGridEstimated = nil
+		}
 	}
 	b.Issues = append([]Finding(nil), a.Issues...)
 	b.LabeledSections = a.LabeledSections
@@ -73,6 +82,7 @@ func BuildResearch(ctx context.Context, a Analysis, filePath string) (ResearchBu
 	var rms TimelineSeries
 	var energy EnergyTimeline
 	var lufs TimelineSeries
+	var vu VUTimeline
 	var clips []ClipEvent
 	var clipErr string
 
@@ -87,6 +97,7 @@ func BuildResearch(ctx context.Context, a Analysis, filePath string) (ResearchBu
 			return e
 		}
 		lufs, _ = ComputeLUFSTimeline(ctx, filePath)
+		vu, _ = ComputeVUStyleTimeline(ctx, filePath, timelineBuckets)
 		clips, e = DetectClipping(ctx, filePath)
 		if e != nil {
 			clipErr = e.Error()
@@ -100,6 +111,10 @@ func BuildResearch(ctx context.Context, a Analysis, filePath string) (ResearchBu
 	b.RMS = rms
 	b.Energy = energy
 	b.LUFS = lufs
+	b.VU = vu
+	if vu.Status != ReliabilityEstimated && vu.Status != ReliabilityMeasured {
+		b.NotPerformed = append([]string{"vu_meter"}, b.NotPerformed...)
+	}
 	if clipErr != "" {
 		b.ClippingError = clipErr
 		b.ClippingStatus = ReliabilityNotPerf
@@ -149,6 +164,9 @@ func BuildResearch(ctx context.Context, a Analysis, filePath string) (ResearchBu
 		b.LabeledSections = LabelSections(a.Sections, dur, rms.TimesSec, rms.Values)
 	}
 
+	// Merge MIR artifacts from sibling <basename>_mir/ when present.
+	MergeMIRArtifacts(&b, filePath)
+
 	return b, nil
 }
 
@@ -186,8 +204,33 @@ func WriteExportZip(ctx context.Context, w io.Writer, a Analysis, research Resea
 	if buf, err := beatsCSV(research); err == nil {
 		_ = add("beats.csv", buf)
 	}
+	if buf, err := beatsJSON(research); err == nil {
+		_ = add("beats.json", buf)
+	}
 	if buf, err := issuesCSV(research.Issues); err == nil {
 		_ = add("issues.csv", buf)
+	}
+	if len(research.Chords) > 0 {
+		if buf, err := json.MarshalIndent(research.Chords, "", "  "); err == nil {
+			_ = add("chords.json", buf)
+		}
+		if buf, err := chordsCSV(research.Chords); err == nil {
+			_ = add("chords.csv", buf)
+		}
+	}
+	if len(research.Notes) > 0 {
+		if buf, err := json.MarshalIndent(research.Notes, "", "  "); err == nil {
+			_ = add("notes.json", buf)
+		}
+		if buf, err := notesCSV(research.Notes); err == nil {
+			_ = add("notes.csv", buf)
+		}
+	}
+	if research.HasNotesMIDI && research.Path != "" {
+		midiPath := filepath.Join(DefaultMIRDir(research.Path), "notes.mid")
+		if data, err := os.ReadFile(midiPath); err == nil {
+			_ = add("notes.mid", data)
+		}
 	}
 
 	if spectrogramPNG != "" {
@@ -234,7 +277,12 @@ func buildReportMarkdown(a Analysis, r ResearchBundle) string {
 	}
 	if a.RhythmAnalysis != nil {
 		b.WriteString(fmt.Sprintf("- Tempo: %.1f BPM (confidence %.3f), beats detected: %d\n", a.RhythmAnalysis.TempoBPM, a.RhythmAnalysis.Confidence, a.RhythmAnalysis.BeatsDetected))
-		b.WriteString(fmt.Sprintf("- Measured beat times: %d (analyzer prints first N only)\n", len(a.RhythmAnalysis.BeatTimesSec)))
+		complete := a.RhythmAnalysis.BeatsComplete || (a.RhythmAnalysis.BeatsDetected > 0 && len(a.RhythmAnalysis.BeatTimesSec) == a.RhythmAnalysis.BeatsDetected)
+		if complete {
+			b.WriteString(fmt.Sprintf("- Measured beat times: %d (complete)\n", len(a.RhythmAnalysis.BeatTimesSec)))
+		} else {
+			b.WriteString(fmt.Sprintf("- Measured beat times: %d (analyzer printed first N only)\n", len(a.RhythmAnalysis.BeatTimesSec)))
+		}
 	}
 	if r.ClippingStatus == ReliabilityMeasured {
 		b.WriteString(fmt.Sprintf("- Clipping runs (ffmpeg): %d\n", len(r.Clipping)))
@@ -249,6 +297,15 @@ func buildReportMarkdown(a Analysis, r ResearchBundle) string {
 	}
 	b.WriteString(fmt.Sprintf("- Estimated beat grid points: %d\n", len(r.BeatGridEstimated)))
 	b.WriteString(fmt.Sprintf("- Labeled sections: %d (heuristic)\n", len(r.LabeledSections)))
+	if len(r.Chords) > 0 {
+		b.WriteString(fmt.Sprintf("- Chord segments: %d (estimated)\n", len(r.Chords)))
+	}
+	if len(r.Notes) > 0 {
+		b.WriteString(fmt.Sprintf("- Note events: %d (estimated)\n", len(r.Notes)))
+	}
+	if r.VU.Status == ReliabilityEstimated || r.VU.Status == ReliabilityMeasured {
+		b.WriteString("- VU-style timeline (not IEC 60268-17)\n")
+	}
 
 	b.WriteString("\n## Not performed\n\n")
 	for _, n := range r.NotPerformed {
@@ -298,6 +355,58 @@ func beatsCSV(r ResearchBundle) ([]byte, error) {
 	}
 	for _, t := range r.BeatGridEstimated {
 		_ = w.Write([]string{fmt.Sprintf("%.4f", t), "estimated"})
+	}
+	w.Flush()
+	return buf.Bytes(), w.Error()
+}
+
+func beatsJSON(r ResearchBundle) ([]byte, error) {
+	obj := map[string]interface{}{
+		"beat_times_measured": r.BeatTimesMeasured,
+		"beat_grid_estimated": r.BeatGridEstimated,
+		"beats_complete":      r.BeatsComplete,
+		"tempo_bpm":           r.TempoBPM,
+		"tempo_half_bpm":      r.TempoHalfBPM,
+		"tempo_double_bpm":    r.TempoDoubleBPM,
+	}
+	return json.MarshalIndent(obj, "", "  ")
+}
+
+func chordsCSV(chords []ChordSegment) ([]byte, error) {
+	var buf bytes.Buffer
+	w := csv.NewWriter(&buf)
+	_ = w.Write([]string{"start_time", "end_time", "label", "confidence", "channel_or_stem", "method", "reliability"})
+	for _, c := range chords {
+		_ = w.Write([]string{
+			fmt.Sprintf("%.4f", c.StartTime),
+			fmt.Sprintf("%.4f", c.EndTime),
+			c.Label,
+			fmt.Sprintf("%.4f", c.Confidence),
+			c.ChannelOrStem,
+			c.Method,
+			c.Reliability,
+		})
+	}
+	w.Flush()
+	return buf.Bytes(), w.Error()
+}
+
+func notesCSV(notes []NoteEvent) ([]byte, error) {
+	var buf bytes.Buffer
+	w := csv.NewWriter(&buf)
+	_ = w.Write([]string{"start_time", "end_time", "midi", "name", "velocity", "confidence", "channel_or_stem", "method", "reliability"})
+	for _, n := range notes {
+		_ = w.Write([]string{
+			fmt.Sprintf("%.4f", n.StartTime),
+			fmt.Sprintf("%.4f", n.EndTime),
+			strconv.Itoa(n.MIDI),
+			n.Name,
+			fmt.Sprintf("%.4f", n.Velocity),
+			fmt.Sprintf("%.4f", n.Confidence),
+			n.ChannelOrStem,
+			n.Method,
+			n.Reliability,
+		})
 	}
 	w.Flush()
 	return buf.Bytes(), w.Error()

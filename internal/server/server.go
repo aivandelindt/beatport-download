@@ -23,6 +23,8 @@ func (s *Server) Mount(mux *http.ServeMux, webFS embed.FS) {
 	mux.HandleFunc("POST /api/audio/analyze", s.handleAudioAnalyze)
 	mux.HandleFunc("POST /api/audio/normalize", s.handleAudioNormalize)
 	mux.HandleFunc("POST /api/audio/stems", s.handleAudioStems)
+	mux.HandleFunc("POST /api/audio/chords", s.handleAudioChords)
+	mux.HandleFunc("POST /api/audio/notes", s.handleAudioNotes)
 	mux.HandleFunc("GET /api/audio/library", s.handleAudioLibraryList)
 	mux.HandleFunc("GET /api/audio/library/{id}/waveforms", s.handleAudioLibraryWaveforms)
 	mux.HandleFunc("GET /api/audio/library/{id}/research", s.handleAudioLibraryResearch)

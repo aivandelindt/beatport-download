@@ -29,6 +29,8 @@ type Config struct {
 	AudioAnalyzerCLIPath string  `yaml:"audio_analyzer_cli_path" json:"audio_analyzer_cli_path"`
 	StemSplitterPath     string  `yaml:"stem_splitter_path"     json:"stem_splitter_path"`
 	StemProvider         string  `yaml:"stem_provider"          json:"stem_provider"`
+	MIRPythonPath        string  `yaml:"mir_python_path"        json:"mir_python_path"`
+	MIRWorkerPath        string  `yaml:"mir_worker_path"        json:"mir_worker_path"`
 	NormalizeTargetLUFS  float64 `yaml:"normalize_target_lufs"  json:"normalize_target_lufs"`
 	NormalizeTruePeak    float64 `yaml:"normalize_true_peak"    json:"normalize_true_peak"`
 	NormalizeLRA         float64 `yaml:"normalize_lra"          json:"normalize_lra"`

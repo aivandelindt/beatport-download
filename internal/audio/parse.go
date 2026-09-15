@@ -45,8 +45,9 @@ var (
 	reMeanMedian = regexp.MustCompile(`(?i)Mean tempo:\s*([\d.]+)\s*BPM\s*\|\s*Median:\s*([\d.]+)\s*BPM`)
 	reStability = regexp.MustCompile(`(?i)Stability:\s*([\d.]+)`)
 	reIBIStd = regexp.MustCompile(`(?i)IBI std(?:ard)?\s*dev(?:iation)?:\s*([\d.]+)\s*sec`)
-	// MCP: "First 20 beats: …"  CLI: "First beats: …"
-	reBeatTimes = regexp.MustCompile(`(?i)First(?:\s+\d+)?\s+beats:\s*(.+)`)
+	// Prefer full list ("Beat times: …"); fall back to truncated "First N beats: …"
+	reBeatTimesAll  = regexp.MustCompile(`(?i)(?:^|\n)\s*Beat times:\s*(.+)`)
+	reBeatTimesFirst = regexp.MustCompile(`(?i)First(?:\s+\d+)?\s+beats:\s*(.+)`)
 
 	reQuietLoud = regexp.MustCompile(`(?i)Quiet sections:\s*([-\d.]+)\s*dBFS\s*\|\s*Loud sections:\s*([-\d.]+)\s*dBFS`)
 
@@ -382,8 +383,14 @@ func parseRhythm(text string) RhythmAnalysis {
 			r.IBIStdSec = &v
 		}
 	}
-	if m := reBeatTimes.FindStringSubmatch(text); len(m) == 2 {
-		for _, part := range strings.Split(m[1], ",") {
+	beatLine := ""
+	if m := reBeatTimesAll.FindStringSubmatch(text); len(m) == 2 {
+		beatLine = m[1]
+	} else if m := reBeatTimesFirst.FindStringSubmatch(text); len(m) == 2 {
+		beatLine = m[1]
+	}
+	if beatLine != "" {
+		for _, part := range strings.Split(beatLine, ",") {
 			part = strings.TrimSpace(part)
 			part = strings.TrimSuffix(part, "s")
 			if part == "" {
@@ -398,6 +405,9 @@ func parseRhythm(text string) RhythmAnalysis {
 		if len(r.BeatTimesSec) > 0 {
 			r.BeatTimesSource = ReliabilityMeasured
 		}
+	}
+	if r.BeatsDetected > 0 && len(r.BeatTimesSec) == r.BeatsDetected {
+		r.BeatsComplete = true
 	}
 	return r
 }

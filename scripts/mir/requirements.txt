@@ -1,0 +1,22 @@
+# Optional MIR dependencies for BeatportDL-UI (chords + notes).
+#
+# IMPORTANT: Spotify basic-pitch only supports Python 3.8–3.11.
+# On macOS with Python ≥3.12 it tries to pull tensorflow-macos, which has
+# no wheels for modern Python — pip will fail. Use a dedicated 3.10/3.11 venv.
+#
+# Recommended (Apple Silicon / Intel macOS):
+#   mise install python@3.11   # or brew install python@3.11
+#   python3.11 -m venv .venv-mir
+#   .venv-mir/bin/pip install -U pip
+#   .venv-mir/bin/pip install -r scripts/mir/requirements.txt
+#   # Settings → MIR Python path:  /abs/path/to/.venv-mir/bin/python
+#
+# Chords-only (any recent Python, no Basic Pitch):
+#   pip install -r scripts/mir/requirements-chords.txt
+
+librosa>=0.10.0,<1.1
+numpy>=1.23,<2.1
+# coremltools warns above 1.5.1; keep conversion quiet.
+scikit-learn>=1.0,<1.6
+# CoreML on Darwin avoids TensorFlow; onnxruntime is the Linux/Windows fallback.
+basic-pitch[coreml,onnx]==0.4.0

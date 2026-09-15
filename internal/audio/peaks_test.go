@@ -2,6 +2,7 @@ package audio
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"os"
 	"os/exec"
@@ -88,4 +89,77 @@ func TestComputePeaks_TinyWav(t *testing.T) {
 	if maxAbs < 0.5 {
 		t.Fatalf("expected normalized peaks near 1, maxAbs=%v", maxAbs)
 	}
+	if len(p.RGBLow) != 50 || len(p.RGBMid) != 50 || len(p.RGBHigh) != 50 {
+		t.Fatalf("rgb lengths %d %d %d", len(p.RGBLow), len(p.RGBMid), len(p.RGBHigh))
+	}
+}
+
+func TestBucketMinMaxAndRGB_LowDominates(t *testing.T) {
+	t.Parallel()
+	n := 40
+	orig := make([]float32, n)
+	low := make([]float32, n)
+	mid := make([]float32, n)
+	high := make([]float32, n)
+	for i := 0; i < n; i++ {
+		orig[i] = 0.4
+		low[i] = 0.9
+		mid[i] = 0.1
+		high[i] = 0.05
+	}
+	_, rgbL, rgbM, rgbH := bucketMinMaxAndRGB(orig, low, mid, high, 4)
+	if len(rgbL) != 4 {
+		t.Fatalf("len %d", len(rgbL))
+	}
+	if rgbL[0] <= rgbM[0] || rgbL[0] <= rgbH[0] {
+		t.Fatalf("low should dominate: L=%v M=%v H=%v", rgbL[0], rgbM[0], rgbH[0])
+	}
+	if math.Abs(rgbL[0]-1) > 1e-6 {
+		t.Fatalf("low should normalize to 1, got %v", rgbL[0])
+	}
+}
+
+func TestComputePeaks_RGBBandTones(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg not available")
+	}
+	dir := t.TempDir()
+	bass := filepath.Join(dir, "bass.wav")
+	air := filepath.Join(dir, "air.wav")
+	for _, spec := range []struct {
+		path string
+		freq int
+	}{{bass, 100}, {air, 6000}} {
+		cmd := exec.Command("ffmpeg", "-nostdin", "-y", "-f", "lavfi",
+			"-i", fmt.Sprintf("sine=frequency=%d:duration=0.4", spec.freq),
+			"-ac", "1", spec.path)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("generate %s: %v: %s", spec.path, err, out)
+		}
+	}
+	lowP, err := ComputePeaks(context.Background(), bass, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	highP, err := ComputePeaks(context.Background(), air, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mean(lowP.RGBLow) <= mean(lowP.RGBHigh) {
+		t.Fatalf("100Hz should be red/bass-dominant: L=%v H=%v", mean(lowP.RGBLow), mean(lowP.RGBHigh))
+	}
+	if mean(highP.RGBHigh) <= mean(highP.RGBLow) {
+		t.Fatalf("6kHz should be blue/high-dominant: L=%v H=%v", mean(highP.RGBLow), mean(highP.RGBHigh))
+	}
+}
+
+func mean(v []float64) float64 {
+	if len(v) == 0 {
+		return 0
+	}
+	var s float64
+	for _, x := range v {
+		s += x
+	}
+	return s / float64(len(v))
 }

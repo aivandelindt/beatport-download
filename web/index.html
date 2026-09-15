@@ -328,7 +328,7 @@
           </div>
 
           <div class="audio-panel" id="audio-panel-library">
-            <p class="field-hint">Browse persisted analysis results. Click a row for play, waveforms, spectrogram, beat/section overlays, and research export.</p>
+            <p class="field-hint">Browse persisted analysis results. Click a row for play, waveforms, spectrogram, beat/chord overlays, VU-style meter, and research export.</p>
             <div class="library-filters audio-controls-row">
               <div class="field library-field-grow">
                 <label>Path search</label>
@@ -519,6 +519,19 @@
               <div class="field full">
                 <label>Stem splitter path</label>
                 <input type="text" name="stem_splitter_path" class="text-input" placeholder="dist/tools/bin/stem-splitter" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field full">
+                <label>MIR Python path</label>
+                <input type="text" name="mir_python_path" class="text-input" placeholder=".venv-mir/bin/python (Python 3.10–3.11)" />
+                <p class="field-hint">Optional. Use a Python <strong>3.10–3.11</strong> venv with <code>scripts/mir/requirements.txt</code> (Basic Pitch does not support 3.12+ / system Python 3.14 on macOS).</p>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field full">
+                <label>MIR worker path</label>
+                <input type="text" name="mir_worker_path" class="text-input" placeholder="scripts/mir/worker.py" />
               </div>
             </div>
             <div class="field-row">
