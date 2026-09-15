@@ -23,7 +23,7 @@
 
 ## Audio tools
 
-Workflow: `.claude/skills/audio-tools/SKILL.md`. Analyze via audio-analyzer-rs MCP (NDJSON) or CLI (text → JSON); stems via `stem-splitter` ONNX (CoreML on darwin/arm64; auto/CPU/XNNPACK on Intel); normalize via ffmpeg two-pass loudnorm. API: `GET /api/audio/tools`, `POST /api/audio/analyze|normalize|stems`. Jobs use `kind` = `analyze|stems|normalize|download`.
+Workflow: `.claude/skills/audio-tools/SKILL.md`. Analyze via audio-analyzer-rs MCP (NDJSON) or CLI (text → JSON); stems via `stem-splitter` ONNX (CoreML on darwin/arm64; auto/CPU/XNNPACK on Intel); normalize via ffmpeg two-pass loudnorm; optional MIR (`scripts/mir/worker.py`) for chords/notes; Library research includes VU-style meter and full beat lists. API: `GET /api/audio/tools`, `POST /api/audio/analyze|normalize|stems|chords|notes`. Jobs use `kind` = `analyze|stems|normalize|chords|notes|download`.
 
 ## Catalog search
 

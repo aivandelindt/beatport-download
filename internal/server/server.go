@@ -23,6 +23,17 @@ func (s *Server) Mount(mux *http.ServeMux, webFS embed.FS) {
 	mux.HandleFunc("POST /api/audio/analyze", s.handleAudioAnalyze)
 	mux.HandleFunc("POST /api/audio/normalize", s.handleAudioNormalize)
 	mux.HandleFunc("POST /api/audio/stems", s.handleAudioStems)
+	mux.HandleFunc("POST /api/audio/chords", s.handleAudioChords)
+	mux.HandleFunc("POST /api/audio/notes", s.handleAudioNotes)
+	mux.HandleFunc("GET /api/audio/library", s.handleAudioLibraryList)
+	mux.HandleFunc("GET /api/audio/library/{id}/waveforms", s.handleAudioLibraryWaveforms)
+	mux.HandleFunc("GET /api/audio/library/{id}/research", s.handleAudioLibraryResearch)
+	mux.HandleFunc("GET /api/audio/library/{id}/spectrogram", s.handleAudioLibrarySpectrogram)
+	mux.HandleFunc("GET /api/audio/library/{id}/export", s.handleAudioLibraryExport)
+	mux.HandleFunc("GET /api/audio/library/{id}/file", s.handleAudioLibraryFile)
+	mux.HandleFunc("GET /api/audio/library/{id}/stems/{stem}", s.handleAudioLibraryStem)
+	mux.HandleFunc("GET /api/audio/library/{id}", s.handleAudioLibraryGet)
+	mux.HandleFunc("DELETE /api/audio/library/{id}", s.handleAudioLibraryDelete)
 	mux.HandleFunc("GET /api/ws", s.handleWS)
 
 	// Static web UI

@@ -27,6 +27,8 @@ const state = {
     charts: false,
   },
   searchReleaseExpanded: {},
+  librarySelectedId: null,
+  libraryStoreAvailable: true,
 };
 
 const COLLAPSIBLE_SEARCH_SECTIONS = ['artists', 'releases', 'tracks', 'labels', 'charts'];
@@ -1213,6 +1215,8 @@ function kindLabel(kind) {
     case 'analyze': return 'Analyze';
     case 'stems': return 'Stems';
     case 'normalize': return 'Normalize';
+    case 'chords': return 'Chords';
+    case 'notes': return 'Notes';
     default: return 'Download';
   }
 }
@@ -1241,7 +1245,12 @@ function statusIcon(status) {
 
 function jobSubText(job) {
   const kind = job.kind || 'download';
-  const verb = kind === 'analyze' ? 'Analyzing' : kind === 'stems' ? 'Splitting' : kind === 'normalize' ? 'Normalizing' : 'Downloading';
+  const verb = kind === 'analyze' ? 'Analyzing'
+    : kind === 'stems' ? 'Splitting'
+    : kind === 'normalize' ? 'Normalizing'
+    : kind === 'chords' ? 'Estimating chords'
+    : kind === 'notes' ? 'Estimating notes'
+    : 'Downloading';
   const doneVerb = kind === 'download' ? 'downloaded' : 'done';
   if (job.status === 'pending')  return 'Waiting…';
   if (job.status === 'running')  return `${verb}… ${job.completed + job.failed} / ${job.total || '?'} done`;
@@ -1391,12 +1400,23 @@ function initAudio() {
       const panel = tab.dataset.audioPanel;
       $$('.audio-tab').forEach(t => t.classList.toggle('active', t === tab));
       $$('.audio-panel').forEach(p => p.classList.toggle('active', p.id === `audio-panel-${panel}`));
+      if (panel === 'library') loadLibrary();
     });
   });
 
   $('#btn-audio-analyze')?.addEventListener('click', () => runAudioJob('analyze'));
   $('#btn-audio-stems')?.addEventListener('click', () => runAudioJob('stems'));
   $('#btn-audio-normalize')?.addEventListener('click', () => runAudioJob('normalize'));
+
+  $('#btn-library-search')?.addEventListener('click', () => loadLibrary());
+  ['library-q', 'library-key', 'library-bpm-min', 'library-bpm-max'].forEach(id => {
+    $('#' + id)?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        loadLibrary();
+      }
+    });
+  });
 
   loadAudioToolsStatus();
   syncAudioControlsFromSettings();
@@ -1430,6 +1450,19 @@ async function loadAudioToolsStatus() {
     if (!data.ffmpeg) {
       msgs.push('ffmpeg not found on PATH (required for normalize and tags).');
     }
+    state.mirTools = {
+      librosa: !!data.librosa,
+      basic_pitch: !!data.basic_pitch,
+      mir_ok: !!data.mir_ok,
+      mir_worker: !!data.mir_worker,
+    };
+    if (data.mir_worker && !data.librosa && !data.basic_pitch) {
+      msgs.push('MIR worker found but librosa/basic-pitch missing. Install <code>scripts/mir/requirements.txt</code> into your MIR Python.');
+    }
+    state.libraryStoreAvailable = !!data.analysis_store;
+    if (!data.analysis_store) {
+      msgs.push('Analysis library unavailable. Check Settings → Analysis database (driver and DSN).');
+    }
     if (msgs.length === 0) {
       banner.style.display = 'none';
       banner.innerHTML = '';
@@ -1453,6 +1486,7 @@ async function runAudioJob(kind) {
     url = '/api/audio/analyze';
     body.kind = $('#audio-analyze-kind')?.value || 'full_analysis';
     body.backend = $('#audio-analyze-backend')?.value || 'auto';
+    body.force = !!$('#audio-analyze-force')?.checked;
     btn = $('#btn-audio-analyze');
   } else if (kind === 'stems') {
     url = '/api/audio/stems';
@@ -1496,20 +1530,330 @@ function renderAnalysisResults(job) {
   if (list.length === 0) return;
   wrap.style.display = '';
   const a = list[list.length - 1];
-  const key = a.harmonic_analysis ? `${a.harmonic_analysis.key || ''} ${a.harmonic_analysis.mode || ''}`.trim() : '—';
+  const harm = a.harmonic_analysis;
+  const key = harm ? `${harm.key || ''} ${harm.mode || ''}`.trim() : '—';
+  const camelot = harm?.camelot
+    ? camelotTextHTML(harm.camelot)
+    : '—';
   const bpm = a.rhythm_analysis?.tempo_bpm != null ? a.rhythm_analysis.tempo_bpm : '—';
+  const half = a.rhythm_analysis?.tempo_half_bpm;
+  const dbl = a.rhythm_analysis?.tempo_double_bpm;
+  const bpmAlt = half && dbl ? ` (½ ${Number(half).toFixed(1)} / 2× ${Number(dbl).toFixed(1)})` : '';
   const lufs = a.spectral_features?.lufs_integrated != null ? a.spectral_features.lufs_integrated : '—';
   const dur = a.audio_info?.duration_sec != null ? a.audio_info.duration_sec.toFixed(2) + 's' : '—';
+  const issueCount = Array.isArray(a.issues) ? a.issues.length : 0;
   summary.innerHTML = `
     <div class="analysis-metrics">
       <div><span class="analysis-metric-label">File</span><span>${escHtml(a.path || '')}</span></div>
       <div><span class="analysis-metric-label">Key</span><span>${escHtml(String(key))}</span></div>
-      <div><span class="analysis-metric-label">BPM</span><span>${escHtml(String(bpm))}</span></div>
+      <div><span class="analysis-metric-label">Camelot</span><span>${camelot}</span></div>
+      <div><span class="analysis-metric-label">BPM</span><span>${escHtml(String(bpm))}${escHtml(bpmAlt)}</span></div>
       <div><span class="analysis-metric-label">LUFS</span><span>${escHtml(String(lufs))}</span></div>
       <div><span class="analysis-metric-label">Duration</span><span>${escHtml(String(dur))}</span></div>
+      <div><span class="analysis-metric-label">Issues</span><span>${escHtml(String(issueCount))}</span></div>
       <div><span class="analysis-metric-label">Source</span><span>${escHtml(a.source || '')}</span></div>
     </div>`;
   jsonEl.textContent = JSON.stringify(list, null, 2);
+}
+
+function libraryKeyLabel(item) {
+  const parts = [item.key, item.mode].filter(Boolean);
+  return parts.length ? parts.join(' ') : '—';
+}
+
+function libraryFmtNum(n, digits) {
+  if (n == null || n === '' || Number.isNaN(Number(n))) return '—';
+  return Number(n).toFixed(digits);
+}
+
+function libraryKeyWithCamelot(item) {
+  const key = libraryKeyLabel(item);
+  if (item.camelot) {
+    return `${camelotTextHTML(item.camelot)}${key !== '—' ? ` <span class="musical-key-name">${escHtml(key)}</span>` : ''}`;
+  }
+  return escHtml(key);
+}
+
+function libraryFmtAnalyzed(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '—';
+  return formatDateISO(ts) || d.toLocaleString();
+}
+
+function libraryBasename(path) {
+  if (!path) return '—';
+  const i = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+  return i >= 0 ? path.slice(i + 1) : path;
+}
+
+function renderLibraryTable(items, total, message) {
+  const tbody = $('#library-table-body');
+  if (!tbody) return;
+  if (message) {
+    tbody.innerHTML = `<tr class="library-empty-row"><td colspan="6">${escHtml(message)}</td></tr>`;
+    return;
+  }
+  if (!items || items.length === 0) {
+    tbody.innerHTML = '<tr class="library-empty-row"><td colspan="6">No saved analyses yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(item => {
+    const selected = state.librarySelectedId === item.id ? ' selected' : '';
+    return `<tr class="library-row${selected}" data-library-id="${item.id}">
+      <td class="library-col-path" title="${escHtml(item.path || '')}">${escHtml(libraryBasename(item.path))}</td>
+      <td>${libraryKeyWithCamelot(item)}</td>
+      <td class="library-col-num">${escHtml(libraryFmtNum(item.tempo_bpm, 1))}</td>
+      <td class="library-col-num">${escHtml(libraryFmtNum(item.lufs_integrated, 1))}</td>
+      <td class="library-col-kind">${escHtml(item.kind || '—')}</td>
+      <td>${escHtml(libraryFmtAnalyzed(item.analyzed_at))}</td>
+    </tr>`;
+  }).join('');
+  if (total > items.length) {
+    tbody.innerHTML += `<tr class="library-empty-row"><td colspan="6">Showing ${items.length} of ${total} results.</td></tr>`;
+  }
+  $$('.library-row', tbody).forEach(row => {
+    row.addEventListener('click', () => {
+      const id = Number(row.dataset.libraryId);
+      if (id) selectLibraryItem(id);
+    });
+  });
+}
+
+function hideLibraryDetail() {
+  if (window.LibraryPlayer) window.LibraryPlayer.destroy();
+  const detail = $('#library-detail');
+  if (detail) {
+    detail.style.display = 'none';
+    detail.innerHTML = '';
+  }
+  state.librarySelectedId = null;
+  $$('.library-row.selected').forEach(r => r.classList.remove('selected'));
+}
+
+async function loadLibrary() {
+  if (!state.libraryStoreAvailable) {
+    renderLibraryTable([], 0, 'Analysis library unavailable. Check Settings → Analysis database.');
+    hideLibraryDetail();
+    return;
+  }
+  const q = $('#library-q')?.value.trim() || '';
+  const key = $('#library-key')?.value.trim() || '';
+  const params = new URLSearchParams({ q, limit: '100' });
+  if (key) params.set('key', key);
+  const bpmMin = $('#library-bpm-min')?.value.trim();
+  const bpmMax = $('#library-bpm-max')?.value.trim();
+  if (bpmMin) params.set('bpm_min', bpmMin);
+  if (bpmMax) params.set('bpm_max', bpmMax);
+  const btn = $('#btn-library-search');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/audio/library?' + params);
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 503) {
+      state.libraryStoreAvailable = false;
+      renderLibraryTable([], 0, data.error || 'Analysis store unavailable.');
+      hideLibraryDetail();
+      loadAudioToolsStatus();
+      return;
+    }
+    if (!res.ok) {
+      renderLibraryTable([], 0, data.error || 'Failed to load library.');
+      return;
+    }
+    renderLibraryTable(data.items || [], data.total || 0);
+    if (state.librarySelectedId && !(data.items || []).some(i => i.id === state.librarySelectedId)) {
+      hideLibraryDetail();
+    }
+  } catch (e) {
+    renderLibraryTable([], 0, e.message || 'Failed to load library.');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function selectLibraryItem(id) {
+  state.librarySelectedId = id;
+  $$('.library-row').forEach(r => r.classList.toggle('selected', Number(r.dataset.libraryId) === id));
+  const detail = $('#library-detail');
+  if (!detail) return;
+  detail.style.display = '';
+  detail.innerHTML = '<p class="field-hint">Loading…</p>';
+  try {
+    const res = await fetch(`/api/audio/library/${id}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      detail.innerHTML = `<p class="field-hint">${escHtml(data.error || 'Failed to load detail.')}</p>`;
+      return;
+    }
+    renderLibraryDetail(data);
+  } catch (e) {
+    detail.innerHTML = `<p class="field-hint">${escHtml(e.message || 'Failed to load detail.')}</p>`;
+  }
+}
+
+function renderLibraryDetail(data) {
+  const detail = $('#library-detail');
+  if (!detail) return;
+  if (window.LibraryPlayer) window.LibraryPlayer.destroy();
+  const a = data.analysis || {};
+  const key = data.key && data.mode ? `${data.key} ${data.mode}`.trim() : libraryKeyLabel(data);
+  const camelot = data.camelot
+    ? camelotTextHTML(data.camelot)
+    : (a.harmonic_analysis?.camelot ? camelotTextHTML(a.harmonic_analysis.camelot) : '—');
+  const bpm = data.tempo_bpm != null ? libraryFmtNum(data.tempo_bpm, 1) : '—';
+  const lufs = data.lufs_integrated != null ? libraryFmtNum(data.lufs_integrated, 1) : '—';
+  const dur = data.duration_sec != null ? libraryFmtNum(data.duration_sec, 2) + 's' : '—';
+  const fileMissing = !!data.file_missing;
+  const issueCount = Array.isArray(data.issues) ? data.issues.length
+    : (Array.isArray(a.issues) ? a.issues.length : 0);
+  const playerSlot = fileMissing
+    ? '<p class="field-hint library-file-missing">Audio file not found on disk. Analysis is still available below.</p>'
+    : '<div id="library-player-slot"></div>';
+  detail.innerHTML = `
+    <div class="library-detail-header">
+      <strong>${escHtml(libraryBasename(data.path || ''))}</strong>
+      <div class="library-detail-actions">
+        <a class="btn-secondary" id="btn-library-export" href="/api/audio/library/${data.id}/export">Export</a>
+        <button type="button" class="btn-secondary" id="btn-library-chords" ${fileMissing ? 'disabled' : ''}>Estimate chords</button>
+        <button type="button" class="btn-secondary" id="btn-library-notes" ${fileMissing ? 'disabled' : ''}>Estimate notes</button>
+        <button type="button" class="btn-secondary" id="btn-library-reanalyze">Re-analyze</button>
+        <button type="button" class="btn-secondary" id="btn-library-delete">Delete</button>
+      </div>
+    </div>
+    <p class="field-hint" id="library-mir-hint" style="display:none"></p>
+    ${playerSlot}
+    <div class="analysis-metrics">
+      <div><span class="analysis-metric-label">Path</span><span>${escHtml(data.path || '')}</span></div>
+      <div><span class="analysis-metric-label">Key</span><span>${escHtml(String(key))}</span></div>
+      <div><span class="analysis-metric-label">Camelot</span><span>${camelot}</span></div>
+      <div><span class="analysis-metric-label">BPM</span><span>${escHtml(String(bpm))}</span></div>
+      <div><span class="analysis-metric-label">LUFS</span><span>${escHtml(String(lufs))}</span></div>
+      <div><span class="analysis-metric-label">Duration</span><span>${escHtml(String(dur))}</span></div>
+      <div><span class="analysis-metric-label">Issues</span><span>${escHtml(String(issueCount))}</span></div>
+      <div><span class="analysis-metric-label">Kind</span><span>${escHtml(data.kind || '')}</span></div>
+      <div><span class="analysis-metric-label">Source</span><span>${escHtml(data.source || '')}</span></div>
+      <div><span class="analysis-metric-label">Analyzed</span><span>${escHtml(libraryFmtAnalyzed(data.analyzed_at))}</span></div>
+    </div>
+    <details open>
+      <summary>Raw JSON</summary>
+      <pre id="library-detail-json"></pre>
+    </details>`;
+  const jsonEl = $('#library-detail-json');
+  if (jsonEl) jsonEl.textContent = JSON.stringify(a, null, 2);
+  $('#btn-library-delete')?.addEventListener('click', e => {
+    e.stopPropagation();
+    deleteLibraryItem(data.id);
+  });
+  $('#btn-library-reanalyze')?.addEventListener('click', e => {
+    e.stopPropagation();
+    reanalyzeLibraryItem(data.path);
+  });
+  $('#btn-library-chords')?.addEventListener('click', e => {
+    e.stopPropagation();
+    runLibraryMIRJob('chords', data.path);
+  });
+  $('#btn-library-notes')?.addEventListener('click', e => {
+    e.stopPropagation();
+    runLibraryMIRJob('notes', data.path);
+  });
+  $('#btn-library-export')?.addEventListener('click', e => {
+    e.stopPropagation();
+  });
+  syncLibraryMIRButtons();
+  if (!fileMissing && window.LibraryPlayer) {
+    const slot = $('#library-player-slot');
+    if (slot) {
+      window.LibraryPlayer.mount(slot, { id: data.id, stems: data.stems || {} });
+    }
+  }
+}
+
+function syncLibraryMIRButtons() {
+  const mir = state.mirTools || {};
+  const chordsBtn = $('#btn-library-chords');
+  const notesBtn = $('#btn-library-notes');
+  const hint = $('#library-mir-hint');
+  const msgs = [];
+  if (chordsBtn) {
+    const ok = !!mir.librosa;
+    chordsBtn.disabled = chordsBtn.disabled || !ok;
+    if (!ok) msgs.push('Chords need librosa (configure MIR Python in Settings).');
+  }
+  if (notesBtn) {
+    const ok = !!mir.basic_pitch;
+    notesBtn.disabled = notesBtn.disabled || !ok;
+    if (!ok) msgs.push('Notes need basic-pitch (configure MIR Python in Settings).');
+  }
+  if (hint) {
+    if (msgs.length) {
+      hint.style.display = '';
+      hint.textContent = msgs.join(' ');
+    } else {
+      hint.style.display = 'none';
+      hint.textContent = '';
+    }
+  }
+}
+
+async function runLibraryMIRJob(kind, path) {
+  if (!path) return;
+  const url = kind === 'chords' ? '/api/audio/chords' : '/api/audio/notes';
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path, force: true }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast(data.error || (kind + ' failed'), 'error');
+      return;
+    }
+    toast((kind === 'chords' ? 'Chords' : 'Notes') + ' job queued', 'ok');
+    document.querySelector('.nav-item[data-view="queue"]')?.click();
+  } catch (e) {
+    toast(e.message || (kind + ' failed'), 'error');
+  }
+}
+
+async function deleteLibraryItem(id) {
+  if (!id) return;
+  if (!confirm('Delete this analysis from the library?')) return;
+  try {
+    const res = await fetch(`/api/audio/library/${id}`, { method: 'DELETE' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast(data.error || 'Delete failed', 'error');
+      return;
+    }
+    toast('Analysis deleted', 'ok');
+    if (state.librarySelectedId === id) hideLibraryDetail();
+    await loadLibrary();
+  } catch (e) {
+    toast(e.message || 'Delete failed', 'error');
+  }
+}
+
+async function reanalyzeLibraryItem(path) {
+  if (!path) return;
+  const backend = state.settings?.audio_analyzer_backend || 'auto';
+  try {
+    const res = await fetch('/api/audio/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path, kind: 'full_analysis', backend, force: true }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast(data.error || 'Re-analyze failed', 'error');
+      return;
+    }
+    toast('Re-analyze job queued', 'ok');
+    document.querySelector('.nav-item[data-view="queue"]')?.click();
+  } catch (e) {
+    toast(e.message || 'Re-analyze failed', 'error');
+  }
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────

@@ -1,0 +1,145 @@
+Audio Visualizer (Rust)
+=======================
+
+File:        /Users/dvandelindt/Music/Beatport/Tosh - Final Destination.flac
+Sample rate: 44100 Hz
+Samples:     18353264
+Duration:    416.17 seconds
+Decoded in:  195.99ms
+
+Computing spectrogram...
+  Frames:     35843
+  Freq bins:  1025
+  Duration:   416.14 sec
+  Computed in: 137.88ms
+
+Computing spectral features...
+  Spectral Centroid:   avg 3133 Hz (brightness)
+  Spectral Bandwidth:  avg 3267 Hz (richness)
+  Spectral Rolloff:    avg 6500 Hz (energy concentration)
+  Spectral Flatness:   avg 0.1539 (0=tonal, 1=noisy)
+  Frequency Band Energy:
+    sub_bass     (   20–   60 Hz): 0.019044 █████████
+    bass         (   60–  250 Hz): 0.029914 ██████████████
+    low_mid      (  250–  500 Hz): 0.009951 ████
+    mid          (  500– 2000 Hz): 0.004019 ██
+    upper_mid    ( 2000– 4000 Hz): 0.002069 █
+    presence     ( 4000– 6000 Hz): 0.001434 
+    brilliance   ( 6000–20000 Hz): 0.000600 
+  Spectral Contrast (peak–valley):
+    sub_bass     (   20–   60 Hz):  11.0 dB █████
+    bass         (   60–  250 Hz):  30.3 dB ███████████████
+    low_mid      (  250–  500 Hz):  16.0 dB ████████
+    mid          (  500– 2000 Hz):  19.7 dB █████████
+    upper_mid    ( 2000– 4000 Hz):  16.8 dB ████████
+    presence     ( 4000– 6000 Hz):  16.0 dB ████████
+    brilliance   ( 6000–20000 Hz):  39.1 dB ███████████████████
+  Computed in:         160.75ms
+
+Computing harmonic analysis...
+  Estimated key:  F major (confidence: 0.661)
+  Pitch class ranking (strongest → weakest):
+     1. F  0.820 ████████████████████████
+     2. G  0.781 ███████████████████████
+     3. A  0.753 ██████████████████████
+     4. G# 0.736 ██████████████████████
+     5. E  0.712 █████████████████████
+     6. A# 0.705 █████████████████████
+     7. C  0.704 █████████████████████
+     8. D  0.666 ███████████████████
+     9. F# 0.632 ██████████████████
+    10. D# 0.611 ██████████████████
+    11. C# 0.531 ███████████████
+    12. B  0.519 ███████████████
+  Tonnetz frames:  35831
+  Computed in:     1.21s
+
+Computing rhythm analysis...
+  Estimated tempo: 71.8 BPM (confidence: 0.251)
+  Detected beats:  438
+  Mean tempo:      63.2 BPM (from inter-beat intervals)
+  Median tempo:    71.8 BPM
+  Tempo stability: 0.000 (0=erratic, 1=metronomic)
+  IBI std dev:     2.574 sec
+  First beats:     0.19s, 1.03s, 1.87s, 2.71s, 3.54s, 4.39s, 5.22s, 6.06s, 6.91s, 7.74s
+  Computed in:     18.96ms
+
+Computing percussive analysis (HPSS)...
+  Percussive ratio:  0.431 (0=harmonic, 1=percussive)
+  Onset density:     10.6/sec
+  Peak attack sharp: 1.000
+  Computed in:       7.88s
+
+Computing frequency masking detection...
+
+── Frequency Masking ──
+Crowding (high energy + low contrast):
+  sub_bass     (   20–   60 Hz): 0.131  clean
+  bass         (   60–  250 Hz): 0.161  clean
+  low_mid      (  250–  500 Hz): 0.138  clean
+  mid          (  500– 2000 Hz): 0.144  clean
+  upper_mid    ( 2000– 4000 Hz): 0.105  clean
+  presence     ( 4000– 6000 Hz): 0.100  clean
+  brilliance   ( 6000–20000 Hz): 0.075  clean
+H/P collision (harmonic + percussive fighting):
+  low_mid     : 0.408  moderate
+  mid         : 0.567  COLLISION
+  upper_mid   : 0.580  COLLISION
+  presence    : 0.571  COLLISION
+  brilliance  : 0.528  COLLISION
+Cross-band bleed:
+  upper_mid↔presence: 0.838  moderate
+  presence↔brilliance: 0.884  HIGH
+  Computed in:     41.01ms
+
+Computing dynamic range...
+  Peak:            -0.25 dBFS
+  Crest factor:    9.5 dB — healthy dynamics
+  Loudness range:  17.4 dB (95th–5th percentile) — very dynamic
+  Quiet sections:  -22.1 dBFS (5th percentile)
+  Loud sections:   -4.7 dBFS (95th percentile)
+  Computed in:     42.40ms
+
+Loading stereo channels...
+  Loaded in:       238.51ms
+
+Computing LUFS loudness (EBU R128)...
+  Integrated:      -7.7 LUFS
+  True peak:       -0.2 dBTP
+  Loudness range:  7.4 LU
+  Platform targets:
+    Spotify       -14 LUFS → turned DOWN 6.3 dB
+    Apple Music   -16 LUFS → turned DOWN 8.3 dB
+    YouTube       -14 LUFS → turned DOWN 6.3 dB
+  Short-term:      -17.1 to -6.0 LUFS
+  Computed in:     832.89ms
+
+Computing stereo analysis...
+Phase correlation:   0.718 avg, -0.775 min — good mono compatibility
+Phase warnings:      6.4% of frames have negative correlation
+Stereo width:        0.376 avg, 2.780 max — moderate
+Balance:             -0.002 — centred
+Mono compatibility:  0.858 avg, 0.115 min — some loss in mono
+  Computed in:     62.98ms
+
+Detecting section boundaries...
+  Working BPM:     144 (confidence: 0.48)
+  Boundaries:      15
+     0:13.5s  energy+spectral (confidence: 0.35)
+     0:40.1s  energy (confidence: 0.65)
+     1:07.4s  energy+texture (confidence: 0.71)
+     2:53.4s  energy+spectral (confidence: 0.37)
+     3:18.0s  energy+texture (confidence: 0.45)
+     3:21.5s  energy+spectral+harmonic+texture (confidence: 0.96)
+     3:26.9s  spectral+harmonic+texture (confidence: 1.00)
+     3:53.2s  harmonic (confidence: 0.40)
+     4:08.3s  harmonic (confidence: 0.35)
+     4:15.2s  energy+harmonic (confidence: 0.40)
+     4:24.1s  spectral+texture (confidence: 0.37)
+     4:28.4s  spectral+texture (confidence: 0.74)
+     4:32.8s  texture (confidence: 0.41)
+     4:42.2s  energy (confidence: 0.49)
+     5:08.8s  spectral (confidence: 0.37)
+  Computed in:     67.06ms
+
+=== TOTAL: 10.89s ==="

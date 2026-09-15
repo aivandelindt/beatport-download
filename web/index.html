@@ -256,6 +256,7 @@
             <button type="button" class="audio-tab active" data-audio-panel="analyze">Analyze</button>
             <button type="button" class="audio-tab" data-audio-panel="stems">Stems</button>
             <button type="button" class="audio-tab" data-audio-panel="normalize">Normalize</button>
+            <button type="button" class="audio-tab" data-audio-panel="library">Library</button>
           </div>
 
           <div class="audio-panel active" id="audio-panel-analyze">
@@ -278,6 +279,11 @@
                   <option value="cli">CLI</option>
                 </select>
               </div>
+              <label class="toggle">
+                <input type="checkbox" id="audio-analyze-force" />
+                <span class="toggle-slider"></span>
+                Force re-analyze
+              </label>
               <button class="btn-fix" id="btn-audio-analyze" type="button">Analyze</button>
             </div>
             <div class="analysis-card" id="audio-analysis-results" style="display:none">
@@ -319,6 +325,49 @@
               </label>
               <button class="btn-fix" id="btn-audio-normalize" type="button">Normalize</button>
             </div>
+          </div>
+
+          <div class="audio-panel" id="audio-panel-library">
+            <p class="field-hint">Browse persisted analysis results. Click a row for play, waveforms, spectrogram, beat/chord overlays, VU-style meter, and research export.</p>
+            <div class="library-filters audio-controls-row">
+              <div class="field library-field-grow">
+                <label>Path search</label>
+                <input type="text" id="library-q" class="text-input" placeholder="Filter by path substring" />
+              </div>
+              <div class="field">
+                <label>Key</label>
+                <input type="text" id="library-key" class="text-input" placeholder="e.g. Am" />
+              </div>
+              <div class="field">
+                <label>BPM min</label>
+                <input type="number" id="library-bpm-min" class="text-input" step="0.1" min="0" placeholder="—" />
+              </div>
+              <div class="field">
+                <label>BPM max</label>
+                <input type="number" id="library-bpm-max" class="text-input" step="0.1" min="0" placeholder="—" />
+              </div>
+              <button class="btn-fix" id="btn-library-search" type="button">Search</button>
+            </div>
+            <div class="library-table-wrap">
+              <table class="library-table" id="library-table">
+                <thead>
+                  <tr>
+                    <th>Path</th>
+                    <th>Key</th>
+                    <th>BPM</th>
+                    <th>LUFS</th>
+                    <th>Kind</th>
+                    <th>Analyzed</th>
+                  </tr>
+                </thead>
+                <tbody id="library-table-body">
+                  <tr class="library-empty-row">
+                    <td colspan="6">No saved analyses yet.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="analysis-card library-detail" id="library-detail" style="display:none"></div>
           </div>
         </div>
       </section>
@@ -473,6 +522,32 @@
               </div>
             </div>
             <div class="field-row">
+              <div class="field full">
+                <label>MIR Python path</label>
+                <input type="text" name="mir_python_path" class="text-input" placeholder=".venv-mir/bin/python (Python 3.10–3.11)" />
+                <p class="field-hint">Optional. Use a Python <strong>3.10–3.11</strong> venv with <code>scripts/mir/requirements.txt</code> (Basic Pitch does not support 3.12+ / system Python 3.14 on macOS).</p>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field full">
+                <label>MIR worker path</label>
+                <input type="text" name="mir_worker_path" class="text-input" placeholder="scripts/mir/worker.py" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Analysis database</label>
+                <select name="analysis_db_driver" class="select-input">
+                  <option value="sqlite">SQLite</option>
+                  <option value="postgres">Postgres</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Database DSN</label>
+                <input type="text" name="analysis_db_dsn" class="text-input" placeholder="empty = default analysis.db / postgres URL" />
+              </div>
+            </div>
+            <div class="field-row">
               <div class="field">
                 <label>Normalize target LUFS</label>
                 <input type="number" name="normalize_target_lufs" class="text-input" step="0.1" />
@@ -511,6 +586,7 @@
   <!-- Toast -->
   <div class="toast-container" id="toast-container"></div>
 
+  <script src="/js/library-player.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>

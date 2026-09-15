@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"beatportdl-ui/internal/audio"
+	"beatportdl-ui/internal/audio/store"
 	"beatportdl-ui/internal/beatport"
 	"beatportdl-ui/internal/config"
 
@@ -29,11 +30,12 @@ var upgrader = websocket.Upgrader{
 }
 
 type Server struct {
-	hub    *Hub
-	cfg    *config.Config
-	cfgMu  sync.RWMutex
-	jobs   map[string]*Job
-	jobsMu sync.RWMutex
+	hub           *Hub
+	cfg           *config.Config
+	cfgMu         sync.RWMutex
+	jobs          map[string]*Job
+	jobsMu        sync.RWMutex
+	analysisStore *store.Store
 }
 
 type Job struct {
@@ -56,11 +58,39 @@ type Job struct {
 }
 
 func NewServer(cfg *config.Config) *Server {
-	return &Server{
+	s := &Server{
 		hub:  NewHub(),
 		cfg:  cfg,
 		jobs: make(map[string]*Job),
 	}
+	driver, dsn := analysisDSN(cfg)
+	st, err := store.Open(driver, dsn)
+	if err != nil {
+		slog.Error("analysis store unavailable", "err", err)
+	} else {
+		s.analysisStore = st
+	}
+	return s
+}
+
+func analysisDSN(cfg *config.Config) (driver, dsn string) {
+	driver = cfg.AnalysisDBDriver
+	if driver == "" {
+		driver = "sqlite"
+	}
+	dsn = cfg.AnalysisDBDSN
+	if driver == "sqlite" && dsn == "" {
+		dsn = store.DefaultSQLiteDSN(config.Dir())
+	}
+	return driver, dsn
+}
+
+// Close releases server resources (e.g. analysis store on shutdown).
+func (s *Server) Close() error {
+	if s.analysisStore == nil {
+		return nil
+	}
+	return s.analysisStore.Close()
 }
 
 func respond(w http.ResponseWriter, code int, v interface{}) {
@@ -1679,6 +1709,10 @@ func jobKindLabel(job *Job) string {
 		return "Stems"
 	case "normalize":
 		return "Normalize"
+	case "chords":
+		return "Chords"
+	case "notes":
+		return "Notes"
 	default:
 		return "Download"
 	}

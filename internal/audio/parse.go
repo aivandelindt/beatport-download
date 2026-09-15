@@ -44,13 +44,22 @@ var (
 	reBeats = regexp.MustCompile(`(?i)(?:Detected )?[Bb]eats(?: detected)?:\s*(\d+)`)
 	reMeanMedian = regexp.MustCompile(`(?i)Mean tempo:\s*([\d.]+)\s*BPM\s*\|\s*Median:\s*([\d.]+)\s*BPM`)
 	reStability = regexp.MustCompile(`(?i)Stability:\s*([\d.]+)`)
-	reBeatTimes = regexp.MustCompile(`(?i)First\s+\d+\s+beats:\s*(.+)`)
+	reIBIStd = regexp.MustCompile(`(?i)IBI std(?:ard)?\s*dev(?:iation)?:\s*([\d.]+)\s*sec`)
+	// Prefer full list ("Beat times: …"); fall back to truncated "First N beats: …"
+	reBeatTimesAll  = regexp.MustCompile(`(?i)(?:^|\n)\s*Beat times:\s*(.+)`)
+	reBeatTimesFirst = regexp.MustCompile(`(?i)First(?:\s+\d+)?\s+beats:\s*(.+)`)
+
+	reQuietLoud = regexp.MustCompile(`(?i)Quiet sections:\s*([-\d.]+)\s*dBFS\s*\|\s*Loud sections:\s*([-\d.]+)\s*dBFS`)
 
 	rePercRatio = regexp.MustCompile(`(?i)Percussive ratio:\s*([\d.]+)`)
 	reOnsetDens = regexp.MustCompile(`(?i)Onset density:\s*([\d.]+)`)
 	reAttack    = regexp.MustCompile(`(?i)Peak attack sharp:\s*([\d.]+)`)
 
 	reSection = regexp.MustCompile(`(?m)^\s*(?:(\d+):)?(\d+(?:\.\d+)?)s\s+([^(]+)\(confidence:\s*([\d.]+)\)`)
+
+	reMaskCrowding = regexp.MustCompile(`(?i)^\s*([A-Za-z_ -]+?)\s*\([^)]*\):\s*([\d.]+)\s+(\S+)`)
+	reMaskHP       = regexp.MustCompile(`(?i)^\s*([A-Za-z_ -]+?)\s*:\s*([\d.]+)\s+(\S+)`)
+	reMaskBleed    = regexp.MustCompile(`(?i)^\s*(\S+↔\S+|\S+<->\S+|\S+↔\S+):\s*([\d.]+)\s+(\S+)`)
 )
 
 // Parse converts analyzer formatted text into structured Analysis for the given kind.
@@ -110,6 +119,9 @@ func fillFull(out *Analysis, text string) {
 	out.RhythmAnalysis = &rhythm
 	if p := parsePercussive(text); p != nil {
 		out.Percussive = p
+	}
+	if m := parseMasking(text); m != nil {
+		out.Masking = m
 	}
 	out.Sections = parseSections(text)
 }
@@ -183,6 +195,12 @@ func parseSpectral(text string) SpectralFeatures {
 	}
 	if m := reLRA.FindStringSubmatch(text); len(m) == 2 {
 		s.LRA, _ = strconv.ParseFloat(m[1], 64)
+	}
+	if m := reQuietLoud.FindStringSubmatch(text); len(m) == 3 {
+		q, _ := strconv.ParseFloat(m[1], 64)
+		l, _ := strconv.ParseFloat(m[2], 64)
+		s.QuietRMSDBFS = &q
+		s.LoudRMSDBFS = &l
 	}
 	if stereo := parseStereo(text); stereo != nil {
 		s.Stereo = stereo
@@ -359,8 +377,20 @@ func parseRhythm(text string) RhythmAnalysis {
 	if m := reStability.FindStringSubmatch(text); len(m) == 2 {
 		r.Stability, _ = strconv.ParseFloat(m[1], 64)
 	}
-	if m := reBeatTimes.FindStringSubmatch(text); len(m) == 2 {
-		for _, part := range strings.Split(m[1], ",") {
+	if m := reIBIStd.FindStringSubmatch(text); len(m) == 2 {
+		v, err := strconv.ParseFloat(m[1], 64)
+		if err == nil {
+			r.IBIStdSec = &v
+		}
+	}
+	beatLine := ""
+	if m := reBeatTimesAll.FindStringSubmatch(text); len(m) == 2 {
+		beatLine = m[1]
+	} else if m := reBeatTimesFirst.FindStringSubmatch(text); len(m) == 2 {
+		beatLine = m[1]
+	}
+	if beatLine != "" {
+		for _, part := range strings.Split(beatLine, ",") {
 			part = strings.TrimSpace(part)
 			part = strings.TrimSuffix(part, "s")
 			if part == "" {
@@ -372,6 +402,12 @@ func parseRhythm(text string) RhythmAnalysis {
 			}
 			r.BeatTimesSec = append(r.BeatTimesSec, v)
 		}
+		if len(r.BeatTimesSec) > 0 {
+			r.BeatTimesSource = ReliabilityMeasured
+		}
+	}
+	if r.BeatsDetected > 0 && len(r.BeatTimesSec) == r.BeatsDetected {
+		r.BeatsComplete = true
 	}
 	return r
 }
@@ -420,6 +456,69 @@ func parseSections(text string) []SectionBoundary {
 		})
 	}
 	return out
+}
+
+func parseMasking(text string) *MaskingAnalysis {
+	idx := strings.Index(text, "Frequency Masking")
+	if idx < 0 {
+		return nil
+	}
+	section := text[idx:]
+	if e := strings.Index(section[1:], "\n──"); e >= 0 {
+		section = section[:e+1]
+	}
+	m := &MaskingAnalysis{}
+	mode := "" // crowding | hp | bleed
+	for _, line := range strings.Split(section, "\n") {
+		trim := strings.TrimSpace(line)
+		lower := strings.ToLower(trim)
+		switch {
+		case strings.Contains(lower, "crowding"):
+			mode = "crowding"
+			continue
+		case strings.Contains(lower, "h/p collision") || strings.Contains(lower, "harmonic + percussive"):
+			mode = "hp"
+			continue
+		case strings.Contains(lower, "cross-band bleed") || strings.Contains(lower, "cross band bleed"):
+			mode = "bleed"
+			continue
+		case trim == "" || strings.HasPrefix(trim, "──") || strings.Contains(lower, "frequency masking"):
+			continue
+		}
+		switch mode {
+		case "crowding":
+			if mm := reMaskCrowding.FindStringSubmatch(trim); len(mm) == 4 {
+				score, _ := strconv.ParseFloat(mm[2], 64)
+				m.BandCrowding = append(m.BandCrowding, BandCrowding{
+					Band:  normalizeBandName(mm[1]),
+					Score: score,
+					Label: mm[3],
+				})
+			}
+		case "hp":
+			if mm := reMaskHP.FindStringSubmatch(trim); len(mm) == 4 {
+				score, _ := strconv.ParseFloat(mm[2], 64)
+				m.HPCollision = append(m.HPCollision, HPCollision{
+					Band:  normalizeBandName(mm[1]),
+					Score: score,
+					Label: mm[3],
+				})
+			}
+		case "bleed":
+			if mm := reMaskBleed.FindStringSubmatch(trim); len(mm) == 4 {
+				score, _ := strconv.ParseFloat(mm[2], 64)
+				m.CrossBleed = append(m.CrossBleed, CrossBandBleed{
+					Pair:  mm[1],
+					Score: score,
+					Label: mm[3],
+				})
+			}
+		}
+	}
+	if len(m.BandCrowding) == 0 && len(m.HPCollision) == 0 && len(m.CrossBleed) == 0 {
+		return nil
+	}
+	return m
 }
 
 func firstPath(text string) string {

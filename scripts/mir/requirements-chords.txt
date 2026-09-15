@@ -1,0 +1,4 @@
+# Chords-only MIR deps (librosa chroma). Works on Python 3.10+.
+# Notes/MIDI still need scripts/mir/requirements.txt in a Python 3.10–3.11 venv.
+librosa>=0.10.0,<1.1
+numpy>=1.23,<2.1
